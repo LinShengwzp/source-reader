@@ -257,9 +257,10 @@ class ReaderSourceStorageService extends Service {
      * 插入数据
      * @param tableName 表名
      * @param data 数据
+     * @param cover 写入覆盖
      * @returns {Promise<void>}
      */
-    async addData(tableName, data) {
+    async addData(tableName, data, cover) {
         const entity = await this.checkAndCreateTableSqlite(tableName);
         // 检查是否有重复的数据
         const exist = await this.queryOne(tableName, {
@@ -267,9 +268,11 @@ class ReaderSourceStorageService extends Service {
         })
 
         if (exist) {
-            // 利用data覆盖exist
-            // const merge = {...exist, ...data}
-            // return await this.modifyData(tableName, merge)
+            if (cover) {
+                // 利用data覆盖exist
+                const merge = {...exist, ...data}
+                return await this.modifyData(tableName, merge)
+            }
             return exist
         }
 
@@ -327,18 +330,8 @@ class ReaderSourceStorageService extends Service {
      */
     async saveOrUpdate(tableName, data){
         const entity = await this.checkAndCreateTableSqlite(tableName);
-        // 检查是否有重复的数据
-        const exist = await this.queryOne(tableName, {
-            id: data.id
-        })
 
-        if (exist) {
-            // 利用data覆盖exist
-            const merge = {...exist, ...data}
-            return await this.modifyData(tableName, merge)
-        }
-
-        return this.addData(tableName, data)
+        return this.addData(tableName, data, true)
 
     }
 

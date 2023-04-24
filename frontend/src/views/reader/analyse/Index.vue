@@ -348,6 +348,7 @@ export default {
                 const sourceJson = compressJson(dataItem);
                 const res = await that.$ipc.invoke(ipcApiRoute.bookSourceOperation, {
                     action: 'add',
+                    cover: true,
                     data: {
                         platform: 'StandarReader',
                         sourceName: data['sourceName'],

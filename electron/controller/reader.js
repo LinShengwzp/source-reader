@@ -24,12 +24,12 @@ class ReaderController extends Controller {
         const data = {
             action: paramsObj.action,
             result: null,
-            all_list: []
+            message: 'success'
         }
         const tableName = 'bookSource'
         switch (paramsObj.action) {
             case 'add' :
-                data.result = await service.reader.addData(tableName, paramsObj.data);
+                data.result = await service.reader.addData(tableName, paramsObj.data, paramsObj.cover);
                 break;
             case 'del' :
                 data.result = await service.reader.delData(tableName, paramsObj.data);
