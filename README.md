@@ -12,7 +12,7 @@
 + windows build tool
 + vs
 
-### 配置npm
+### [开发](https://www.yuque.com/u34495/mivcfg/ltgte9)
 
 1. 镜像加速
 
@@ -95,7 +95,7 @@ npm run reload
 ```
 
 
-## 打包
+## [打包](https://www.yuque.com/u34495/mivcfg/fro580)
 
 1. 打包前端
 
@@ -111,4 +111,13 @@ cd {root}
 npm run rd
 
 # 运行检查
+```
+3. 构建
+
+```shell
+npm config set electron_builder_binaries_mirror=https://registry.npmmirror.com/-/binary/electron-builder-binaries/
+
+npm run build
+
+
 ```
