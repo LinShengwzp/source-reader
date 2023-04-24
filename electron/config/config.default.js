@@ -58,7 +58,7 @@ module.exports = (appInfo) => {
     },
     frame: true,
     show: false,
-    icon: path.join(appInfo.home, 'public', 'images', 'logo-32.png'),
+    icon: path.join(appInfo.home, 'public', 'images', 'logo.png'),
   };
 
   /**
@@ -154,7 +154,7 @@ module.exports = (appInfo) => {
       enable: true,
     },
     tray: {
-      enable: true,
+      enable: false,
       title: 'EE程序',
       icon: '/public/images/tray_logo.png'
     },
@@ -162,12 +162,12 @@ module.exports = (appInfo) => {
       enable: true,
     },
     awaken: {
-      enable: true,
+      enable: false,
       protocol: 'ee',
       args: []
     },
     autoUpdater: {
-      enable: true,
+      enable: false,
       windows: false,
       macOS: false,
       linux: false,
