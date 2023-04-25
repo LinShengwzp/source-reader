@@ -29,7 +29,9 @@ class ReaderController extends Controller {
         const tableName = 'bookSource'
         switch (paramsObj.action) {
             case 'add' :
-                data.result = await service.reader.addData(tableName, paramsObj.data, paramsObj.cover);
+                const res = await service.reader.addData(tableName, paramsObj.data, paramsObj.cover);
+                data.result = res.result
+                data.message = res.message
                 break;
             case 'del' :
                 data.result = await service.reader.delData(tableName, paramsObj.data);
@@ -41,7 +43,8 @@ class ReaderController extends Controller {
                 data.result = await service.reader.queryData(tableName, paramsObj.data);
                 break;
             case 'saveOrUpdate':
-                data.result = await service.reader.saveOrUpdate(tableName, paramsObj.data);
+                const {result} = await service.reader.saveOrUpdate(tableName, paramsObj.data);
+                data.result = result
                 break;
             case 'getDataDir' :
                 data.result = await service.reader.getDataDir();

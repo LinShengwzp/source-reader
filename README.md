@@ -118,6 +118,12 @@ npm run rd
 npm config set electron_builder_binaries_mirror=https://registry.npmmirror.com/-/binary/electron-builder-binaries/
 
 npm run build
-
-
 ```
+
+## 功能
+
+1. [ ] 爱阅书香功能
+   1. [x] 书源文件解析(解析工具 [xbsrebuild](https://github.com/ne1llee/xbsrebuild.git))
+   2. [x] 书源节点编辑
+   3. [x] 书源本地存储
+   4. [ ] 书源节点调试

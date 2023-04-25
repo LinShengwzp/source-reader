@@ -66,9 +66,9 @@
             </a-card>
         </div>
 
-        <a-modal
-                v-model="showAddNodeName" title="输入新的节点名称" okText="确认" cancelText="取消" centered
-                @ok="addNewNode">
+        <a-modal v-model="showAddNodeName" title="输入新的节点名称"
+                 okText="确认" cancelText="取消" centered
+                 @ok="addNewNode">
             <a-row>
                 <a-col :span="20" :offset="2">
                     <a-input v-model="addNodeName" placeholder="节点名称"/>
@@ -76,11 +76,24 @@
             </a-row>
         </a-modal>
 
-        <a-modal
-                v-model="showDelNodeKey" title="确认删除节点" okText="确认" cancelText="取消" centered @ok="removeNode">
+        <a-modal v-model="showDelNodeKey" title="确认删除节点"
+                 okText="确认" cancelText="取消" centered
+                 @ok="removeNode">
             <a-alert
                     message="是否确认删除节点"
                     description="删除节点后该节点数据不能恢复"
+                    type="warning"
+                    show-icon
+            />
+        </a-modal>
+
+        <a-modal v-model="showCoverNode" title="确认覆盖节点"
+                 okText="覆盖" cancelText="不覆盖" centered
+                 @ok="coverNodeAndReload(true)"
+                 @cancel="coverNodeAndReload(false)">
+            <a-alert
+                    message="已存在相同节点"
+                    description="是否覆盖本地已存储的相同节点"
                     type="warning"
                     show-icon
             />
@@ -121,8 +134,11 @@ export default {
             fileList: [],
             showAddNodeName: false,
             showDelNodeKey: false,
+            showCoverNode: false,
             addNodeName: '',
             delNodeId: '',
+            coverNode: false,
+            hasSetCover: false,
         };
     },
     mounted() {
@@ -186,7 +202,7 @@ export default {
             };
         },
         /**
-         * 存储文件
+         * 存储文件并导出
          * @param menuList
          * @param fileName
          * @returns {Promise<void>}
@@ -277,6 +293,9 @@ export default {
                 })
             }
         },
+        /**
+         * 菜单搜索过滤
+         */
         handleMenuFilter() {
             const that = this
             that.filterList = that.formList
@@ -300,6 +319,11 @@ export default {
                 }
             })
         },
+        /**
+         * 导出 xbs 文件
+         * @param buffer
+         * @param fileName
+         */
         handleExportXbs(buffer, fileName) {
             const that = this
             that.$ipc.invoke(ipcApiRoute.saveFile, {
@@ -321,7 +345,7 @@ export default {
             })
         },
         /**
-         * 存储
+         * 存储到数据库
          * @returns {Promise<void>}
          */
         async saveSourceData() {
@@ -331,7 +355,6 @@ export default {
                 return
             }
             that.contentLoading = true
-
             for (const menu in analyseData) {
                 that.loading = true
                 const data = analyseData[menu]
@@ -348,7 +371,7 @@ export default {
                 const sourceJson = compressJson(dataItem);
                 const res = await that.$ipc.invoke(ipcApiRoute.bookSourceOperation, {
                     action: 'add',
-                    cover: true,
+                    cover: that.coverNode,
                     data: {
                         platform: 'StandarReader',
                         sourceName: data['sourceName'],
@@ -363,11 +386,34 @@ export default {
                         toTop: data['toTop'],
                     }
                 })
-                if (res && res.result) {
-                    that.formList.push({
-                        id: res.result.id,
-                        sourceName: menu
-                    })
+                if (res && res.message) {
+                    switch (res.message) {
+                        case 'success':
+                        case 'cover':
+                            that.formList.push({
+                                id: res.result.id,
+                                sourceName: menu
+                            })
+                            // 存储之后删除这个临时存储节点
+                            delete analyseData[menu]
+                            break
+                        case 'exist':
+                            if (that.hasSetCover) {
+                                // 已设置覆盖策略则直接导入
+                                that.formList.push({
+                                    id: res.result.id,
+                                    sourceName: menu
+                                })
+                                // 存储之后删除这个临时存储节点
+                                delete analyseData[menu]
+                                break
+                            } else {
+                                // 没有设置覆盖策略则中断存储，设置之后再导入
+                                that.showCoverNode = true;
+                                // 中断导入
+                                return;
+                            }
+                    }
                 }
             }
 
@@ -378,6 +424,24 @@ export default {
             that.analyse.analyseData = {}
             that.analyse.completed = true
             that.loading = false
+
+            // 覆盖策略改回false，下次打开文件重新设置
+            that.coverNode = false
+            that.hasSetCover = false
+        },
+        /**
+         * 是否覆盖本地存储节点，并重新解析
+         * @param cover
+         * @returns {Promise<void>}
+         */
+        async coverNodeAndReload(cover) {
+            const that = this
+            that.coverNode = cover
+            that.showCoverNode = false
+            // 标识已设置
+            that.hasSetCover = true
+            // 继续导入
+            that.saveSourceData()
         },
         /**
          * 加载本地存储

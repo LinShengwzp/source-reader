@@ -271,9 +271,15 @@ class ReaderSourceStorageService extends Service {
             if (cover) {
                 // 利用data覆盖exist
                 const merge = {...exist, ...data}
-                return await this.modifyData(tableName, merge)
+                return {
+                    result: await this.modifyData(tableName, merge),
+                    message: 'cover'
+                }
             }
-            return exist
+            return {
+                result: exist,
+                message: 'exist'
+            }
         }
 
         delete data['id']
@@ -315,7 +321,10 @@ class ReaderSourceStorageService extends Service {
             let run = insert.run(data);
             if (run && run['lastInsertRowid']) {
                 data[pk] = run['lastInsertRowid']
-                return data
+                return {
+                    result: data,
+                    message: 'success'
+                }
             }
         } catch (e) {
             throw e
@@ -328,7 +337,7 @@ class ReaderSourceStorageService extends Service {
      * @param tableName
      * @param data
      */
-    async saveOrUpdate(tableName, data){
+    async saveOrUpdate(tableName, data) {
         const entity = await this.checkAndCreateTableSqlite(tableName);
 
         return this.addData(tableName, data, true)
