@@ -45,7 +45,7 @@ module.exports = (appInfo) => {
    * 主窗口
    */
   config.windowsOption = {
-    title: 'EE框架',
+    title: 'SourceReader',
     width: 980,
     height: 650,
     minWidth: 800,
@@ -154,7 +154,7 @@ module.exports = (appInfo) => {
       enable: true,
     },
     tray: {
-      enable: false,
+      enable: false, // 拖盘
       title: 'EE程序',
       icon: '/public/images/tray_logo.png'
     },
@@ -162,7 +162,7 @@ module.exports = (appInfo) => {
       enable: true,
     },
     awaken: {
-      enable: false,
+      enable: false, // 开机自启
       protocol: 'ee',
       args: []
     },
