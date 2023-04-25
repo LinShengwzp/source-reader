@@ -176,7 +176,8 @@ export default {
                 panes.push({
                     title: that.addTabName, content: {
                         actionID: that.action,
-                        parserID: "DOM"
+                        parserID: "DOM",
+                        _sIndex: that.tabList.length
                     }, key: activeKey
                 });
 

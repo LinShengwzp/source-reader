@@ -573,6 +573,12 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
             model: 'validConfig',
             help: ``
         };
+        const sIndex = {
+            type: 'number',
+            model: '_sIndex',
+            label: '排序',
+            placeholder: '排序',
+        }
 
         let modifyFromItem = [sourceName, sourceUrl, password, weight, sourceType, desc, loginUrl, httpHeaders, lastModifyTime, enable]
             .map(item => {
@@ -785,7 +791,7 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
                     formGroups: [
                         {
                             title: '基础信息',
-                            items: [actionId, parserId]
+                            items: [sIndex]
                         },
                         {
                             title: '请求信息',
@@ -808,7 +814,7 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
                     formGroups: [
                         {
                             title: '基础信息',
-                            items: [actionId, parserId]
+                            items: [sIndex]
                         },
                         {
                             title: '请求信息',
