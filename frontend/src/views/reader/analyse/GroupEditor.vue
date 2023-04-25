@@ -1,5 +1,5 @@
 <template>
-    <a-modal v-model="showModal" title="热词" width="90%" @ok="save" okText="保存" cancelText="取消">
+    <a-modal v-model="showModal" :title="title" width="90%" @ok="save" okText="保存" cancelText="取消">
         <a-tabs :activeKey="activateTab" default-active-key="classify_1" type="editable-card" @edit="handleEditTab"
                 @change="handleChangeTab">
             <a-tab-pane v-for="pane in tabList" :key="pane.key" :tab="pane.title" :closable="pane.closable">

@@ -610,10 +610,6 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
                     action: 'searchBook',
                     formGroups: [
                         {
-                            title: '基础信息',
-                            items: [actionId, parserId]
-                        },
-                        {
                             title: '请求信息',
                             items: [requestInfo]
                         },
@@ -632,10 +628,6 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
                     title: '书籍详情',
                     action: 'bookDetail',
                     formGroups: [
-                        {
-                            title: '基础信息',
-                            items: [actionId, parserId]
-                        },
                         {
                             title: '请求信息',
                             items: [requestInfo]
@@ -656,10 +648,6 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
                     action: 'chapterList',
                     formGroups: [
                         {
-                            title: '基础信息',
-                            items: [actionId, parserId]
-                        },
-                        {
                             title: '请求信息',
                             items: [requestInfo]
                         },
@@ -678,10 +666,6 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
                     title: '章节内容',
                     action: 'chapterContent',
                     formGroups: [
-                        {
-                            title: '基础信息',
-                            items: [actionId, parserId]
-                        },
                         {
                             title: '请求信息',
                             items: [requestInfo]
@@ -703,10 +687,6 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
                     action: 'searchShudan',
                     formGroups: [
                         {
-                            title: '基础信息',
-                            items: [actionId, parserId]
-                        },
-                        {
                             title: '请求信息',
                             items: [requestInfo]
                         },
@@ -725,10 +705,6 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
                     title: '书单详情',
                     action: 'shudanDetail',
                     formGroups: [
-                        {
-                            title: '基础信息',
-                            items: [actionId, parserId]
-                        },
                         {
                             title: '请求信息',
                             items: [requestInfo]
@@ -749,10 +725,6 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
                     action: 'shupingList',
                     formGroups: [
                         {
-                            title: '基础信息',
-                            items: [actionId, parserId]
-                        },
-                        {
                             title: '请求信息',
                             items: [requestInfo]
                         },
@@ -772,10 +744,6 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
                     action: 'shupingHome',
                     formGroups: [
                         {
-                            title: '基础信息',
-                            items: [actionId, parserId]
-                        },
-                        {
                             title: '请求信息',
                             items: [requestInfo]
                         },
@@ -794,10 +762,6 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
                     title: '热词',
                     action: 'relatedWord',
                     formGroups: [
-                        {
-                            title: '基础信息',
-                            items: [actionId, parserId]
-                        },
                         {
                             title: '请求信息',
                             items: [requestInfo]
