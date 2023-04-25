@@ -109,8 +109,10 @@ npm run build
 ```shell
 cd {root}
 npm run rd
+# 将前端资源迁移到 /public/dist，如果没有这个文件夹需要新建
 
 # 运行检查
+npm run 
 ```
 3. 构建
 

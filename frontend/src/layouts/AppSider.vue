@@ -79,7 +79,7 @@ export default {
                 },
                 'menu_200': {
                     icon: 'profile',
-                    title: '书籍',
+                    title: '书架',
                     pageName: 'ReaderBooksIndex',
                     params: {}
                 },
