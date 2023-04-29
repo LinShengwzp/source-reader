@@ -1,5 +1,5 @@
 <template>
-    <a-modal v-model="showModal" :title="title" width="90%" @ok="save" okText="保存" cancelText="取消">
+    <a-modal v-model="showModal" :title="title" width="90%">
         <a-form
                 :model="dataForm"
                 ref="dataForm"
@@ -26,6 +26,18 @@
                 </a-col>
             </a-row>
         </a-form>
+
+        <template slot="footer">
+            <a-button key="back" @click="showModal = false">
+                取消
+            </a-button>
+            <a-button key="clean" type="danger" @click="cleanInfo">
+                清空
+            </a-button>
+            <a-button key="submit" type="primary" @click="save">
+                保存
+            </a-button>
+        </template>
     </a-modal>
 </template>
 
@@ -98,6 +110,12 @@ export default {
                 console.log("current editor", that.formGroups, that.dataForm)
                 that.showModal = true
             })
+        },
+        cleanInfo() {
+            this.dataForm = {
+                "actionID": this.action,
+                "parserID": "DOM"
+            }
         },
         save() {
             const that = this

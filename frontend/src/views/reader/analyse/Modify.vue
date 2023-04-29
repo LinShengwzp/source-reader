@@ -888,8 +888,10 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
                     that.$refs['detail'].init(that.detailForm[type], that.dataForm[type])
                     break
                 case 'bookWorld':
+                    that.$refs['group'].init(that.groupFrom[type], that.dataForm[type], that.dataForm['searchBook'])
+                    break
                 case 'shudanList':
-                    that.$refs['group'].init(that.groupFrom[type], that.dataForm[type])
+                    that.$refs['group'].init(that.groupFrom[type], that.dataForm[type], that.dataForm['searchShudan'])
                     break
                 default:
                     break

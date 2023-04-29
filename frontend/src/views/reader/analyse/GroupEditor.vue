@@ -32,12 +32,20 @@
         </a-tabs>
 
         <a-modal
-                v-model="showAddTabName" title="输入新的分组名称" okText="确认" cancelText="取消" centered @ok="addTab">
+                v-model="showAddTabName" title="输入新的分组名称">
             <a-row>
                 <a-col :span="20" :offset="2">
                     <a-input v-model="addTabName" placeholder="分组名称"/>
                 </a-col>
             </a-row>
+            <template slot="footer">
+                <a-button @click="copySearch">
+                    复制搜索规则
+                </a-button>
+                <a-button type="primary" @click="addTab(false)">
+                    确认
+                </a-button>
+            </template>
         </a-modal>
 
         <a-modal
@@ -72,14 +80,24 @@ export default {
             showDelTabGroup: false,
             addTabName: '',
             removeTabKey: '',
+            copyData: {}
         }
     },
     methods: {
-        init(groupForm, data) {
+        /**
+         * 初始化
+         * @param groupForm
+         * @param data
+         * @param copyData 存储用于复制
+         */
+        init(groupForm, data, copyData) {
             const that = this
 
             if (!groupForm || !groupForm.action || !data) {
                 return;
+            }
+            if (copyData) {
+                that.copyData = stringifyJson(copyData, ['requestInfo', 'httpHeaders', 'list', 'moreKeys'])
             }
             that.$nextTick(() => {
                 const {title, action, formGroups} = groupForm
@@ -160,7 +178,11 @@ export default {
                 that.activateTab = activeKey
             })
         },
-        addTab() {
+        /**
+         * 添加标签
+         * @param copy 是否需要复制填充
+         */
+        addTab(copy) {
             const that = this
             const panes = that.tabList;
             if (that.addTabName) {
@@ -173,12 +195,16 @@ export default {
                 }
 
                 const activeKey = `classify_${that.addTabName}`;
+                let content = {
+                    actionID: that.action,
+                    parserID: "DOM",
+                    _sIndex: that.tabList.length
+                };
+                if (copy) {
+                    content = {...that.copyData, ...content}
+                }
                 panes.push({
-                    title: that.addTabName, content: {
-                        actionID: that.action,
-                        parserID: "DOM",
-                        _sIndex: that.tabList.length
-                    }, key: activeKey
+                    title: that.addTabName, content: content, key: activeKey
                 });
 
                 // 回设
@@ -187,6 +213,13 @@ export default {
                     that.showAddTabName = false;
                     that.handleChangeTab(activeKey)
                 })
+            }
+        },
+        copySearch() {
+            if (this.addTabName) {
+                this.addTab(true)
+            } else {
+                return false;
             }
         },
         removeTab() {

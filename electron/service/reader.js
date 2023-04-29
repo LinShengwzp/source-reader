@@ -6,11 +6,33 @@ const _ = require('lodash');
 const path = require('path');
 
 /**
- * 阅读相关
+ * 阅读相关数据库操作
  */
 class ReaderSourceStorageService extends Service {
     sqliteFile = ""
     demoSqliteDB = {}
+
+    constructor(ctx) {
+        super(ctx);
+
+        // 使用sqlite数据库
+        this.sqliteFile = './reader.db';
+        let sqliteOptions = {
+            driver: 'sqlite',
+            default: {
+                timeout: 6000,
+                verbose: console.log // 打印sql语法
+            }
+        }
+        this.readerSqliteDB = Storage.connection(this.sqliteFile, sqliteOptions);
+
+        // 检查实体表
+        for (const tableName in this.tableEntity) {
+            this.checkAndCreateTableSqlite(tableName, this.tableEntity[tableName]);
+        }
+    }
+
+    //<editor-fold desc="数据库表">
     tableEntity = {
         bookSource: {
             id: {
@@ -69,28 +91,14 @@ class ReaderSourceStorageService extends Service {
                 type: 'TEXT',
                 comment: '距离上一次'
             },
-        }
+        },
+        bookGroup: {},
+        bookInfo: {},
     }
 
-    constructor(ctx) {
-        super(ctx);
+    //</editor-fold>
 
-        // 使用sqlite数据库
-        this.sqliteFile = './reader.db';
-        let sqliteOptions = {
-            driver: 'sqlite',
-            default: {
-                timeout: 6000,
-                verbose: console.log // 打印sql语法
-            }
-        }
-        this.readerSqliteDB = Storage.connection(this.sqliteFile, sqliteOptions);
-
-        // 检查实体表
-        for (const tableName in this.tableEntity) {
-            this.checkAndCreateTableSqlite(tableName, this.tableEntity[tableName]);
-        }
-    }
+    //<editor-fold desc="curd">
 
     /*
      * 检查并创建表 (sqlite)
@@ -338,10 +346,7 @@ class ReaderSourceStorageService extends Service {
      * @param data
      */
     async saveOrUpdate(tableName, data) {
-        const entity = await this.checkAndCreateTableSqlite(tableName);
-
         return this.addData(tableName, data, true)
-
     }
 
     /**
@@ -432,6 +437,10 @@ class ReaderSourceStorageService extends Service {
         return null
     }
 
+    //</editor-fold>
+
+    //<editor-fold desc="数据库文件操作">
+
     /**
      * 获取db数据路径
      * @returns {Promise<*>}
@@ -465,6 +474,8 @@ class ReaderSourceStorageService extends Service {
 
         return;
     }
+
+    //</editor-fold>
 }
 
 ReaderSourceStorageService.toString = () => '[class ReaderSourceStorageService]';

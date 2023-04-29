@@ -43,7 +43,11 @@ const parseJson = (obj, keys) => {
                 try {
                     const type = typeof obj[key]
                     if (type === 'string') {
-                        obj[key] = JSON.parse(obj[key])
+                        if (obj[key]) {
+                            obj[key] = JSON.parse(obj[key])
+                        } else {
+                            delete obj[key]
+                        }
                     }
                 } catch (e) {
                     throw new Error(`请提供正确的json格式: [${key}]`)
