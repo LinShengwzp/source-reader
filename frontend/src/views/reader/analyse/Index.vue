@@ -193,52 +193,52 @@ export default {
 
             let reader = new FileReader();
             reader.readAsArrayBuffer(analyse.file);
-            // reader.onload = (e) => {
-            //     //获取数据
-            //     let res = xbsTools.XBS2Json(Buffer.from(e.currentTarget.result), xxTeaKey, false, 0);
-            //     that.analyse.analyseData = byteTools.uint8Array2JsonObj(res)
-            //     // 存储
-            //     that.saveSourceData()
-            // };
-
-            reader.onload = async (e) => {
+            reader.onload = (e) => {
                 //获取数据
-                const res = await that.$ipc.invoke(ipcApiRoute.bookSourceFileRead, {
-                    filePath: analyse.filePath,
-                    cover: that.coverNode,
-                    hasSetCover: that.hasSetCover,
-                    bufArr: e.currentTarget.result
-                })
-                if (res && res.code) {
-                    switch (res.code) {
-                        case 'success':
-                        case 'cover':
-                            that.formList = res.result
-                            break
-                        case 'exist':
-                            // 没有设置覆盖策略则中断存储，设置之后再导入
-                            that.showCoverNode = true;
-                            // 中断导入
-                            return false;
-                    }
-
-                    if (that.formList.length >= 1) {
-                        this.handleMenuClick(that.formList[0])
-                    }
-                    // 清空临时存储
-                    that.analyse.analyseData = {}
-                    that.analyse.completed = true
-                    that.loading = false
-
-                    // 覆盖策略改回false，下次打开文件重新设置
-                    that.coverNode = false
-                    that.hasSetCover = false
-                } else {
-                    that.$message.error('打开文件失败')
-                }
-
-                // TODO 重新导入要改成 that.handleAnalyseFile()
+                let res = xbsTools.XBS2Json(Buffer.from(e.currentTarget.result), xxTeaKey, false, 0);
+                that.analyse.analyseData = byteTools.uint8Array2JsonObj(res)
+                // 存储
+                that.saveSourceData()
             };
+
+            // reader.onload = async (e) => {
+            //     //获取数据
+            //     const res = await that.$ipc.invoke(ipcApiRoute.bookSourceFileRead, {
+            //         filePath: analyse.filePath,
+            //         cover: that.coverNode,
+            //         hasSetCover: that.hasSetCover,
+            //         bufArr: e.currentTarget.result
+            //     })
+            //     if (res && res.code) {
+            //         switch (res.code) {
+            //             case 'success':
+            //             case 'cover':
+            //                 that.formList = res.result
+            //                 break
+            //             case 'exist':
+            //                 // 没有设置覆盖策略则中断存储，设置之后再导入
+            //                 that.showCoverNode = true;
+            //                 // 中断导入
+            //                 return false;
+            //         }
+            //
+            //         if (that.formList.length >= 1) {
+            //             this.handleMenuClick(that.formList[0])
+            //         }
+            //         // 清空临时存储
+            //         that.analyse.analyseData = {}
+            //         that.analyse.completed = true
+            //         that.loading = false
+            //
+            //         // 覆盖策略改回false，下次打开文件重新设置
+            //         that.coverNode = false
+            //         that.hasSetCover = false
+            //     } else {
+            //         that.$message.error('打开文件失败')
+            //     }
+            //
+            //     // TODO 重新导入要改成 that.handleAnalyseFile()
+            // };
         },
         /**
          * 存储文件并导出

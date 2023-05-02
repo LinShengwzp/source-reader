@@ -2,7 +2,7 @@
     <a-form-item
             :label="label"
             :name="name"
-            :rules="rules">
+            :rules="{rules}">
         <a-row>
             <a-col :span="20">
                 <a-textarea v-if="type === 'text'"

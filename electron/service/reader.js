@@ -45,12 +45,14 @@ class ReaderSourceStorageService extends Service {
             platform: {
                 type: 'TEXT',
                 notNull: true,
-                comment: '书源平台'
+                comment: '书源平台',
+                union: true, // 唯一，查询重复用
             },
             sourceName: {
                 type: 'TEXT',
                 notNull: true,
-                comment: '书源名称'
+                comment: '书源名称',
+                union: true, // 唯一，查询重复用
             },
             sourceType: {
                 type: 'TEXT',
@@ -58,17 +60,17 @@ class ReaderSourceStorageService extends Service {
             },
             sourceUrl: {
                 type: 'TEXT',
-                comment: '书源类型'
+                comment: '书源url'
             },
             enable: {
                 type: 'INT',
                 default: 1,
-                comment: '书源类型'
+                comment: '书源启用'
             },
             weight: {
                 type: 'int',
                 default: 1000,
-                comment: '书源类型'
+                comment: '书源权重'
             },
             sourceJson: {
                 type: 'TEXT',
@@ -92,7 +94,41 @@ class ReaderSourceStorageService extends Service {
                 comment: '距离上一次'
             },
         },
-        bookGroup: {},
+        bookGroup: {
+            id: {
+                type: 'INTEGER',
+                pk: true,
+                notNull: true,
+                autoIncrement: true,
+                comment: '分组主键'
+            },
+            platform: {
+                type: 'TEXT',
+                notNull: true,
+                comment: '分组平台',
+                union: true, // 唯一，查询重复用
+            },
+            groupName: {
+                type: 'TEXT',
+                notNull: true,
+                comment: '分组名称',
+                union: true, // 唯一，查询重复用
+            },
+            sourceType: {
+                type: 'TEXT',
+                comment: '分组类型'
+            },
+            enable: {
+                type: 'int',
+                default: 1,
+                comment: '是否可用'
+            },
+            sort: {
+                type: 'int',
+                default: 0,
+                comment: '排序'
+            },
+        },
         bookInfo: {},
     }
 
@@ -145,7 +181,7 @@ class ReaderSourceStorageService extends Service {
      *         comp: '=/like/>/<',
      *         sort: 'asc/desc',
      *         data: '123',
-     *         query: true // 有数据即可
+     *         query: true // 有数据即可，表示这个列需要被查询
      *     }
      *     columnName2: '122',
      *     page: {
@@ -159,12 +195,12 @@ class ReaderSourceStorageService extends Service {
      * @returns {string}
      */
     buildQuery = (entity, data) => {
-        let cols = []
-        let queryCols = []
-        let sort = []
+        let cols = [] // 存储查询条件
+        let queryCols = [] // 存储查询列
+        let sort = [] // 存储排序列
         let pageInfo = {
             index: 1,
-            size: 50,
+            size: 100,
             close: false
         }
 
@@ -177,26 +213,47 @@ class ReaderSourceStorageService extends Service {
                     continue
                 }
 
-                // 处理查询方式
+                const itemType = typeof item
+
                 let comp = item['comp'];
                 let dataSort = item['sort'];
                 let query = item['query'];
-
-                let needWhereData = true
-                // 这里需要判断列里面是否包含内容，比如只有一个 query，表示查询所有数据，但是只需要这个列
-                if (query) {
-                    queryCols.push(col)
-
-                    if (!item['data']) {
+                let needWhereData = false // 是否需要作为查询条件列
+                if (itemType === 'object') {
+                    // 处理查询方式
+                    // 这里需要判断列里面是否包含内容，比如只有一个 query，表示查询所有数据，但是只需要这个列
+                    if (query) {
+                        queryCols.push(col)
                         // 查询这个列和排序等，但是没有where匹配
-                        needWhereData = false
+                        needWhereData = item.hasOwnProperty('data')
                     }
+
+                    // 排序
+                    if (dataSort) {
+                        switch (dataSort) {
+                            case 'asc':
+                            case 'desc':
+                                sort.push({
+                                    cloumn: col,
+                                    order: dataSort
+                                });
+                                break
+                            default:
+                                sort.push({
+                                    cloumn: col,
+                                    order: 'asc'
+                                });
+                                break
+                        }
+                    }
+                } else {
+                    needWhereData = true
                 }
 
-                let itemObj = {
-                    cloumn: col,
-                };
                 if (needWhereData) {
+                    let itemObj = {
+                        cloumn: col,
+                    };
                     // 如果没有设置查询方式、排序、查询列等情况
                     itemObj.data = item['data'] ? item['data'] : data[col];
                     itemObj.comp = comp ? comp : "=" // 比较方式 = > < like 等
@@ -221,25 +278,6 @@ class ReaderSourceStorageService extends Service {
                     }
                     cols.push(itemObj)
                 }
-
-                // 排序
-                if (dataSort) {
-                    switch (dataSort) {
-                        case 'asc':
-                        case 'desc':
-                            sort.push({
-                                cloumn: col,
-                                order: dataSort
-                            });
-                            break
-                        default:
-                            sort.push({
-                                cloumn: col,
-                                order: 'asc'
-                            });
-                            break
-                    }
-                }
             }
         }
         const where = cols.map(i => ` ${i.cloumn} ${i.comp} @${i.cloumn} `).join(" and ");
@@ -262,6 +300,26 @@ class ReaderSourceStorageService extends Service {
     }
 
     /**
+     * 查重
+     * @param tableName
+     * @param data
+     * @returns {Promise<void>}
+     */
+    async exist(tableName, data) {
+        const entity = await this.checkAndCreateTableSqlite(tableName);
+        let queryExist = {}
+        for (const col in entity) {
+            if (data.hasOwnProperty(col)) {
+                // 主键或者唯一字段
+                if (entity[col]["pk"] || entity[col]["union"]) {
+                    queryExist[col] = data[col]
+                }
+            }
+        }
+        return  await this.queryOne(tableName, queryExist)
+    }
+
+    /**
      * 插入数据
      * @param tableName 表名
      * @param data 数据
@@ -271,9 +329,7 @@ class ReaderSourceStorageService extends Service {
     async addData(tableName, data, cover) {
         const entity = await this.checkAndCreateTableSqlite(tableName);
         // 检查是否有重复的数据
-        const exist = await this.queryOne(tableName, {
-            sourceName: data.sourceName
-        })
+        const exist = await this.exist(tableName, data)
 
         if (exist) {
             if (cover) {

@@ -37,7 +37,7 @@ class ReaderController extends Controller {
      */
     success(resData, msg, code) {
         return {
-            code: code || 500,
+            code: code || 200,
             result: resData || {},
             message: msg || "success"
         }
@@ -57,6 +57,15 @@ class ReaderController extends Controller {
      */
     async bookSourceOperation(args) {
         return this.dataOperator('bookSource', args.action, args.data, args.cover)
+    }
+
+    /**
+     * 书籍分组数据库操作
+     * @param args
+     * @returns {Promise<{result: {}, action, message: string}>}
+     */
+    async bookGroupOperation(args) {
+        return this.dataOperator('bookGroup', args.action, args.data, args.cover)
     }
 
     /**
