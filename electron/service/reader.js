@@ -4,6 +4,7 @@ const {Service} = require('ee-core');
 const Storage = require('ee-core/storage');
 const _ = require('lodash');
 const path = require('path');
+const {type} = require("../config/encrypt");
 
 /**
  * 阅读相关数据库操作
@@ -34,6 +35,7 @@ class ReaderSourceStorageService extends Service {
 
     //<editor-fold desc="数据库表">
     tableEntity = {
+        // 书源
         bookSource: {
             id: {
                 type: 'INTEGER',
@@ -94,6 +96,7 @@ class ReaderSourceStorageService extends Service {
                 comment: '距离上一次'
             },
         },
+        // 分组
         bookGroup: {
             id: {
                 type: 'INTEGER',
@@ -118,6 +121,11 @@ class ReaderSourceStorageService extends Service {
                 type: 'TEXT',
                 comment: '分组类型'
             },
+            bookCount: {
+                type: 'int',
+                default: 0,
+                comment: '书本数量'
+            },
             enable: {
                 type: 'int',
                 default: 1,
@@ -129,7 +137,183 @@ class ReaderSourceStorageService extends Service {
                 comment: '排序'
             },
         },
-        bookInfo: {},
+        // 书籍
+        bookInfo: {
+            id: {
+                type: 'INTEGER',
+                pk: true,
+                notNull: true,
+                autoIncrement: true,
+                comment: '书籍主键'
+            },
+            platform: {
+                type: 'TEXT',
+                notNull: true,
+                comment: '书籍平台',
+                union: true, // 唯一，查询重复用
+            },
+            sourceType: {
+                type: 'TEXT',
+                comment: '书籍类型'
+            },
+            groupId: {
+                type: 'INTEGER',
+                notNull: true,
+                comment: '书籍分组',
+            },
+            originFrom: {
+                type: 'TEXT',
+                notNull: true,
+                comment: '书源来源，本地/网络',
+            },
+            sourceId: {
+                type: 'INTEGER',
+                comment: '所属书源',
+            },
+            sourceSearch: {
+                type: 'TEXT',
+                comment: '书源搜索的id记录，逗号分割',
+            },
+            bookName: {
+                type: 'TEXT',
+                notNull: true,
+                comment: '书籍名称',
+                union: true, // 唯一，查询重复用
+            },
+            cover: {
+                type: 'TEXT',
+                notNull: true,
+                comment: '分组名称',
+                union: true, // 唯一，查询重复用
+            },
+            author: {
+                type: 'TEXT',
+                comment: '作者'
+            },
+            wordCount: {
+                type: 'TEXT',
+                comment: '字数/页数/时长'
+            },
+            desc: {
+                type: 'TEXT',
+                comment: '描述'
+            },
+            cat: {
+                type: 'TEXT',
+                comment: '类型'
+            },
+            updateTime: {
+                type: "Text",
+                comment: '最新章更新时间'
+            },
+            updateStatus: {
+                type: "Text",
+                comment: '更新状态，最新章'
+            },
+            readStatus: {
+                type: "Text",
+                comment: '阅读状态，xx章未读/已读完'
+            },
+            currReadStatus: {
+                type: "Text",
+                comment: '章节阅读进度，这三个存储格式一致'
+            },
+            currReadContent: {
+                type: "Text",
+                comment: '字数/页数/时长/阅读进度'
+            },
+            config: {
+                type: "Text",
+                comment: '阅读设置，字体/背景等'
+            },
+            enable: {
+                type: 'int',
+                default: 1,
+                comment: '是否可用'
+            },
+        },
+        // 章节
+        bookChapter: {
+            id: {
+                type: 'INTEGER',
+                pk: true,
+                notNull: true,
+                autoIncrement: true,
+                comment: '章节主键'
+            },
+            bookId: {
+                type: 'INTEGER',
+                notNull: true,
+                comment: '所属书籍',
+            },
+            platform: {
+                type: 'TEXT',
+                notNull: true,
+                comment: '所属平台',
+                union: true, // 唯一，查询重复用
+            },
+            sourceType: {
+                type: 'TEXT',
+                comment: '书籍类型'
+            },
+            cached: {
+                type: 'int',
+                default: 0,
+                comment: '是否缓存'
+            },
+            chapterName: {
+                type: 'TEXT',
+                notNull: true,
+                comment: '章节名称',
+            },
+            desc: {
+                type: 'TEXT',
+                comment: '描述'
+            },
+            wordCount: {
+                type: 'TEXT',
+                comment: '字数/页数/时长'
+            },
+            currReadContent: {
+                type: "Text",
+                comment: '字数/页数/时长/阅读进度'
+            },
+            enable: {
+                type: 'int',
+                default: 1,
+                comment: '是否可用'
+            },
+            sort: {
+                type: 'int',
+                default: 0,
+                comment: '排序'
+            },
+        },
+        // 配置
+        appConfig: {
+            id: {
+                type: 'INTEGER',
+                pk: true,
+                notNull: true,
+                autoIncrement: true,
+                comment: '配置主键'
+            },
+            name: {
+                type: 'TEXT',
+                notNull: true,
+                comment: '配置名称，比如字体大小，阅读背景，搜索历史、选择的书源等都可以放这里等',
+            },
+            value: {
+                type: 'TEXT',
+                notNull: true,
+                comment: '配置内容',
+            },
+            setDef: {
+                type: 'int',
+                default: 0,
+                comment: '是否默认配置，同种配置只能有一个是默认'
+            }
+        }
     }
 
     //</editor-fold>
@@ -316,7 +500,7 @@ class ReaderSourceStorageService extends Service {
                 }
             }
         }
-        return  await this.queryOne(tableName, queryExist)
+        return await this.queryOne(tableName, queryExist)
     }
 
     /**
@@ -402,6 +586,33 @@ class ReaderSourceStorageService extends Service {
      * @param data
      */
     async saveOrUpdate(tableName, data) {
+        // 这一步还是不能省下，如果改了名，这里就直接新增了
+        const entity = await this.checkAndCreateTableSqlite(tableName);
+        // 检查是否有重复的数据
+        let pk = ''
+        for (const col in entity) {
+            if (entity[col]['pk']) {
+                pk = col
+                break
+            }
+        }
+
+        if (data.hasOwnProperty(pk) && data[pk]) {
+            const existPkQuery = {}
+            existPkQuery[pk] = data[pk]
+            // 由于
+            const exist = await this.exist(tableName, existPkQuery)
+
+            if (exist) {
+                // 利用data覆盖exist
+                const merge = {...exist, ...data}
+                return {
+                    result: await this.modifyData(tableName, merge),
+                    message: 'cover'
+                }
+            }
+        }
+
         return this.addData(tableName, data, true)
     }
 

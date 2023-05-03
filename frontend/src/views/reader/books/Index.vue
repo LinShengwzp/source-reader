@@ -1,98 +1,104 @@
 <template>
-    <a-spin :spinning="loading" tip="加载中..." style="height: 100%">
-        <div id="app-bookshelf" class="bookshelf-container">
-            <a-card size="small" title="我的书架" class="card-container">
-                <template #extra><a href="#" @click="handleClean">清空</a></template>
-                <a-row v-show="bookData.completed" class="node-container">
-
-                    <a-col :span="4" class="list-container">
-                        <a-row class="menu-list">
-                            <a-col :span="24">
-                                <ul>
-                                    <li v-for="item in bookData.bookGroup" :key="item.id"
-                                        @click="handleGroupClick(item)"
-                                        :class="['data-item-menu node-item', {'item-select': item.id === menuModel}]">
-                                        {{ item.groupName }}
-                                    </li>
-
-                                    <li @click="handleGroupClick({id: 'groupConfig'})"
-                                        :class="['data-item-menu node-item', {'item-select': 'groupConfig' === menuModel}]">
-                                        管理分组
-                                    </li>
-                                </ul>
-                            </a-col>
-                        </a-row>
-                    </a-col>
-                    <a-col :span="18" class="modify-container">
-                        <a-spin :spinning="contentLoading" tip="加载中..." style="height: 100%;width: 100%">
-                        </a-spin>
-                    </a-col>
-
-                </a-row>
-
-            </a-card>
-            <a-modal v-model="groupConfig.showGroupConfigModal" width="70%" title="管理分组"
-                     okText="确认" cancelText="取消" centered class="card-container">
-                <a-row class="node-container">
-                    <a-col :span="6" class="list-container">
-                        <a-row class="menu-list">
-                            <ul class="ul-container">
+    <div id="app-bookshelf" class="bookshelf-container">
+        <a-card size="small" title="我的书架" class="card-container">
+            <template #extra><a href="#" @click="handleClean">清空</a></template>
+            <a-row v-show="bookData.completed" class="node-container">
+                <a-col :span="4" class="list-container">
+                    <a-row class="menu-list">
+                        <a-col :span="24">
+                            <ul>
                                 <li v-for="item in bookData.bookGroup" :key="item.id"
-                                    @click="handleGroupItemClick(item)"
+                                    @click="handleGroupClick(item)"
                                     :class="['data-item-menu node-item', {'item-select': item.id === menuModel}]">
                                     {{ item.groupName }}
                                 </li>
-                                <li @click="handleGroupItemClick('addGroup')"
-                                    :class="['data-item-menu node-item', {'item-select': 'addGroup' === menuModel}]">
-                                    添加分组
+
+                                <li @click="handleGroupClick({id: 'groupConfig'})"
+                                    :class="['data-item-menu node-item', {'item-select': 'groupConfig' === menuModel}]">
+                                    管理分组
                                 </li>
                             </ul>
-                        </a-row>
-                    </a-col>
-                    <a-col :span="18">
-                        <a-form :model="groupConfig.groupData"
-                                name="groupForm" ref="groupForm"
-                                :label-col="{ span: 4 }"
-                                :wrapper-col="{ span: 20 }"
-                                autocomplete="off">
+                        </a-col>
+                    </a-row>
+                </a-col>
 
-                            <editor-area v-for="item in groupConfig.modifyGroupForm"
-                                         :key="item.model"
-                                         :type="item.type"
-                                         :data.sync="groupConfig.groupData[item.model]"
-                                         :label="item.label"
-                                         :name="item.name"
-                                         :options="item.options"
-                                         :placeholder="item.placeholder"
-                                         :disabled="item.disabled"
-                                         :help="item.help"
-                                         :rules="item.rules"></editor-area>
-                        </a-form>
-                    </a-col>
-                </a-row>
+                <a-col v-if="searchConfig.searchBook" :span="18" class="modify-container">
+                    <search ref="bookSearch"/>
+                </a-col>
 
-                <template slot="footer">
-                    <a-button key="back" @click="groupConfig.showGroupConfigModal = false">
-                        取消
-                    </a-button>
-                    <a-button key="clean" type="danger" @click="handleRemoveGroup">
-                        删除
-                    </a-button>
-                    <a-button key="submit" type="primary" @click="handleConfirmGroupConfig">
-                        保存
-                    </a-button>
-                </template>
+                <a-col v-else :span="18" class="modify-container">
+                    <shelf ref="bookshelf"/>
+                </a-col>
+            </a-row>
 
-            </a-modal>
+        </a-card>
+        <div class="search-btn-contaner">
+            <a-button type="primary" shape="circle" icon="search" @click="searchConfig.searchBook = true"/>
         </div>
-    </a-spin>
+        <a-modal v-model="groupConfig.showGroupConfigModal" width="70%" title="管理分组"
+                 okText="确认" cancelText="取消" centered class="card-container">
+            <a-row class="node-container">
+                <a-col :span="6" class="list-container">
+                    <a-row class="menu-list">
+                        <ul class="ul-container">
+                            <li v-for="item in bookData.bookGroup" :key="item.id"
+                                @click="handleGroupItemClick(item)"
+                                :class="['data-item-menu node-item', {'item-select': item.id === menuModel}]">
+                                {{ item.groupName }}
+                            </li>
+                            <li @click="handleGroupItemClick({id:'addGroup'})"
+                                :class="['data-item-menu node-item', {'item-select': 'addGroup' === menuModel}]">
+                                添加分组
+                            </li>
+                        </ul>
+                    </a-row>
+                </a-col>
+                <a-col :span="18">
+                    <a-form :model="groupConfig.groupData"
+                            name="groupForm" ref="groupForm"
+                            :label-col="{ span: 4 }"
+                            :wrapper-col="{ span: 20 }"
+                            autocomplete="off">
+
+                        <editor-area v-for="item in groupConfig.modifyGroupForm"
+                                     :key="item.model"
+                                     :type="item.type"
+                                     :data.sync="groupConfig.groupData[item.model]"
+                                     :label="item.label"
+                                     :name="item.name"
+                                     :options="item.options"
+                                     :placeholder="item.placeholder"
+                                     :disabled="item.disabled"
+                                     :help="item.help"
+                                     :rules="item.rules"></editor-area>
+                    </a-form>
+                </a-col>
+            </a-row>
+
+            <template slot="footer">
+                <a-button key="back" @click="groupConfig.showGroupConfigModal = false">
+                    取消
+                </a-button>
+                <a-button key="clean" type="danger" @click="handleRemoveGroup">
+                    删除
+                </a-button>
+                <a-button key="submit" type="primary" @click="handleConfirmGroupConfig">
+                    保存
+                </a-button>
+            </template>
+
+        </a-modal>
+    </div>
 </template>
 <script>
 import EditorArea from "@/components/EditorArea.vue";
+import Shelf from "@/views/reader/books/Shelf.vue";
+import Search from "@/views/reader/books/Search.vue";
 import {ipcApiRoute} from "@/api/main";
+import {SourceType} from "@/model/typeModel";
 
 export default {
-    components: {EditorArea},
+    components: {EditorArea, Shelf, Search},
     data() {
         const groupName = {
             type: 'string',
@@ -102,9 +108,10 @@ export default {
             rules: [{required: true, message: '分组名称不能为空!'}]
         };
         const sourceType = {
-            type: 'string',
+            type: 'select',
             label: '分组类型',
             model: 'sourceType',
+            options: SourceType,
         };
         const enable = {
             type: 'switch',
@@ -117,9 +124,11 @@ export default {
             model: 'sort',
         };
         return {
-            loading: false,
+            searchConfig: {
+                searchBook: false,
+                searchLoading: true,
+            },
             menuModel: '', // 选中分组
-            contentLoading: true,
             bookData: {
                 completed: true,
                 bookGroup: [], // 书籍分组
@@ -132,12 +141,18 @@ export default {
             groupForm: {}, // 表单，校验用
         };
     },
+    mounted() {
+        this.init()
+    },
     methods: {
         /**
          * 初始化
          */
-        init() {
-
+        async init() {
+            await this.handleModifyGroupClick()
+            this.contentLoading = false
+            this.searchConfig.searchBook = false
+            this.$refs.bookshelf.init(this.groupConfig.groupData)
         },
         /**
          * 数据重置
@@ -152,13 +167,17 @@ export default {
          */
         handleGroupClick(group) {
             const that = this
+            that.searchConfig.searchBook = false
             switch (group.id) {
                 case 'groupConfig':
                     that.menuModel = 'groupConfig'
                     that.handleModifyGroupClick()
+                    that.groupConfig.showGroupConfigModal = true
                     break
                 default:
                     that.menuModel = group.id
+                    // 加载分组
+                    that.$refs['bookshelf'].init(group)
                     break
             }
         },
@@ -171,7 +190,7 @@ export default {
             that.groupForm.validateFields(async err => {
                 if (!err) {
                     const res = await that.$ipc.invoke(ipcApiRoute.bookGroupOperation, {
-                        action: 'saveOrUpdate',
+                        action: submit.id ? 'update' : 'add',
                         data: that.groupConfig.groupData
                     })
                     if (res && res.code === 200) {
@@ -201,7 +220,6 @@ export default {
             if (res.code === 200) {
                 that.bookData.bookGroup = res.result
                 that.groupForm = that.$form.createForm(this, {name: 'groupForm'})
-                that.groupConfig.showGroupConfigModal = true
                 if (res.result && res.result.length > 0) {
                     that.handleGroupItemClick(res.result[0])
                 }
@@ -210,35 +228,30 @@ export default {
         /**
          * 弹窗中点击/编辑分组
          */
-        handleGroupItemClick(item) {
+        async handleGroupItemClick(item) {
             const that = this
-            const type = typeof item
             let data = item
-            let menuModel = ''
-            if (type === 'string') {
-                switch (item) {
-                    case 'addGroup': {
-                        menuModel = 'addGroup'
-                        data = {
-                            platform: 'StandarReader',
-                            sourceType: 'text',
-                            enable: true,
-                            sort: that.bookData.bookGroup.length
-                        }
-                        break
+            let menuModel = item.id
+            switch (menuModel) {
+                case 'addGroup': {
+                    data = {
+                        platform: 'StandarReader',
+                        sourceType: 'text',
+                        enable: true,
+                        sort: that.bookData.bookGroup.length
                     }
+                    break
                 }
             }
-
             that.$nextTick(() => {
                 that.menuModel = menuModel || data.id
                 that.groupConfig.groupData = data
             })
-
         },
         async handleRemoveGroup() {
             const that = this
             if (that.groupConfig.groupData && that.groupConfig.groupData.id) {
+                // TODO 删除确认
                 const res = await that.$ipc.invoke(ipcApiRoute.bookGroupOperation, {
                     action: 'del',
                     data: that.groupConfig.groupData
@@ -252,13 +265,24 @@ export default {
     }
 };
 </script>
-<style lang="less" scoped>
+<style lang="less">
 #app-bookshelf {
   padding: 10px 10px;
   text-align: left;
   width: 100%;
+  height: 100%;
 
+  .search-btn-contaner {
+    position: absolute;
+    bottom: 2rem;
+    right: 2rem;
+  }
+
+  .ant-card > .ant-card-body {
+    height: 93%;
+  }
 }
+
 
 .card-container {
   width: 100%;
@@ -268,6 +292,7 @@ export default {
   .node-container {
     position: relative;
     margin-top: 10px;
+    height: 100%;
 
     .list-container {
       height: 100%;
@@ -315,8 +340,7 @@ export default {
     }
 
     .modify-container {
-      margin-left: 20%;
-      min-height: 1080px;
+      height: 100%;
     }
   }
 

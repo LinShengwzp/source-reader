@@ -1,7 +1,7 @@
 'use strict';
 
 const {Service} = require('ee-core');
-
+const {net} = require('electron');
 
 const xxTeaKey = [0xe5, 0x87, 0xbc, 0xe8, 0xa4, 0x86, 0xe6, 0xbb, 0xbf, 0xe9, 0x87, 0x91, 0xe6, 0xba, 0xa1, 0xe5];
 
@@ -227,6 +227,399 @@ const byteTools = {
     }
 }
 
+const requestTools = {
+    get(url, params, headers) {
+        // 1. 新建 net.request 请求
+        const request = net.request({
+            headers: headers,
+            method: 'GET',
+            url: url,
+        })
+        // 2. 通过 request.write() 方法，发送的 post 请求数据需要先进行序列化，变成纯文本的形式
+        request.write(JSON.stringify(userInfo))
+
+        // 3. 处理返回结果
+        request.on('response', response => {
+            response.on('data', res => {
+                // res 是 Buffer 数据
+                // 通过 toString() 可以转为 String
+                // 详见： https://blog.csdn.net/KimBing/article/details/124299412
+                let data = JSON.parse(res.toString())
+                console.log("response:", data)
+            })
+            response.on('end', () => {
+            })
+        })
+
+        // 4. 记得关闭请求
+        request.end()
+
+
+    },
+    post(url, data, headers) {
+        // 1. 新建 net.request 请求
+        const request = net.request({
+            headers: headers,
+            method: 'POST',
+            url: url,
+        })
+        // 2. 通过 request.write() 方法，发送的 post 请求数据需要先进行序列化，变成纯文本的形式
+        request.write(JSON.stringify(data))
+        // 3. 处理返回结果
+        request.on('response', response => {
+            response.on('data', res => {
+                // res 是 Buffer 数据
+                // 通过 toString() 可以转为 String
+                // 详见： https://blog.csdn.net/KimBing/article/details/124299412
+                let data = JSON.parse(res.toString())
+                console.log("response:", data)
+            })
+            response.on('end', () => {
+            })
+        })
+
+        // 4. 记得关闭请求
+        request.end()
+    }
+}
+
+/**
+ * xpath解析器
+ */
+class XPathParser {
+
+    str
+    xpath
+
+    constructor(str, xpath) {
+        this.str = str
+        this.xpath = xpath
+    }
+
+    raw() {
+    }
+
+    // 返回内容
+    content() {
+    }
+
+    // 返回字符串
+    tagName() {
+    }
+
+    // 返回字典
+    attributes() {
+    }
+
+    // 返回查询结果，以数组保存
+    queryWithXPath(strXPath) {
+    }
+}
+
+/**
+ * 书源处理
+ */
+class SourceTools {
+
+    // 存放源内容
+    sourceObject
+    // 存放的是当前某一项功能的json内容，比如 searchBook
+    config
+    // 存储工具等
+    params = {
+        nativeTool: {
+            // 打印log，key使用时间截
+            log(obj) {
+
+            },
+            // 打印log并自定义key
+            logWithKey(obj, strKey) {
+
+            },
+            // 将任意对象转换为字符串
+            stringByObject(obj) {
+
+            },
+
+            // 默认的本地设备id，32位md5小写
+            deviceId() {
+
+            },
+
+            // 自定义格式的本地设备id，strTemplate为模版，aaa-aa-aaaa，这里使用-分为3段，每段第一个字符将标识该段类型：0为纯数字，a为纯字母小写，A为纯字母大写，b为字符(数字+字母)小写，B为字符(数字+字母)大写，默认的deviceId模版即为：bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+            deviceIdWithTemplateWithSeparator(strTemplate, strSeparator) {
+
+            },
+            // base64解码，返回字符串
+            base64Decode(str) {
+
+            },
+            // base64编码，返回字符串
+            base64Encode(str) {
+            },
+
+            // 对二进制流(NSData)base64编码，返回字符串
+            base64EncodeWithData(data) {
+            },
+
+            // 从path中读取文件，返回二进制流
+            readFile(strPath) {
+            },
+            // 从path中读取文件，返回字符串
+            readTxtFile(strPath) {
+            },
+            // 解压zip文件，返回目录path
+            unzipFile(strPath) {
+            },
+            // 使用密码解压zip文件，返回目录path
+            unzipFileWithPassword(strPath, strPassword) {
+            },
+            // 获取path目录下所有的文件path，返回数组:arr(path)
+            allFilesAtPath(strDirPath) {
+            },
+            // 获取全局缓存对象
+            getCache(strKey) {
+            },
+            // 设置全局缓存对象
+            setCache(strKey, obj) {
+            },
+
+            // 返回sha1
+            sha1Encode(str) {
+            },
+            // 返回md5
+            md5Encode(str) {
+            },
+            // 返回字符串
+            cookieByKey(str) {
+            },
+            // 返回数组
+            cookiesByUrl(url) {
+            },
+            // 创建XPath解析器，可用于下面XPath解析器专用接口
+            XPathParserWithSource(str) {
+            },
+        },
+        responseUrl() {
+        }
+    }
+    // 存放结果
+    result
+
+    constructor(sourceJson) {
+        if (typeof sourceJson === 'object') {
+            for (const name in sourceJson) {
+                if (typeof sourceJson[name] === 'object' && sourceJson[name]['sourceName']) {
+                    this.sourceObject = sourceJson
+                }
+            }
+        }
+        // 解析源
+    }
+
+    /**
+     * 书籍搜索
+     * @param keyWord
+     * @param type
+     * @param offset
+     * @param pageIndex
+     */
+    searchBook(keyWord, type, offset, pageIndex) {
+        const searchBookConfig = this.sourceObject.searchBook
+        if (!keyWord) {
+            console.error(`empty search string for this source: ${sourceObject['sourceName']}`)
+            return null
+        }
+        if (this.sourceObject['sourceType'] !== type) {
+            console.error(`error search type[${type}] for this source: ${sourceObject['sourceName']}`)
+            return null
+        }
+        if (!searchBookConfig) {
+            console.error(`error search config for this source: ${sourceObject['sourceName']}`)
+            return null
+        }
+
+        // 处理config params
+        this.config = searchBookConfig
+
+        this.params = {// 不要覆盖掉原有的方法
+            ...this.params, ...{
+                // 这三个是之前需要处理好的
+                keyWord: keyWord || '', // 需要转Unicode？
+                offset: offset || 0,
+                pageIndex: pageIndex || 1,
+            }
+        }
+        // 处理请求信息
+        this.buildRequestUrl()
+
+        // 执行请求
+
+
+        // 填入结果
+
+
+        // 处理 requestInfo host httpParams
+    }
+
+    /**
+     * 处理请求信息，处理结果填入 params.requestUrls(数组？)
+     */
+    buildRequestUrl() {
+        // 处理普通url，占位符，@js，url还需要按需接上url
+        const {requestInfo, host, httpHeaders} = this.config
+
+        const result = {
+            url: '', // 字符串，要请求的url
+            POST: false, // 默认false，使用get请求
+            httpParams: {}, // http请求参数
+            httpHeaders: {}, // http请求头
+            forbidCookie: false, // 默认false，true时禁用cookie
+        }
+
+        if (!requestInfo) {
+            return result;
+        }
+        const requestPipe = this.pipeStr(requestInfo)
+
+        requestPipe.forEach(req => {
+            switch (req.type) {
+                case 'function': {
+                    // js的返回值有两种情况，1 返回 object;2 返回 string 直接作为 url
+                    break
+                }
+                case 'xpath': {
+                    break
+                }
+                case 'uri': {
+                    // 需要填充
+                    break
+                }
+            }
+        })
+    }
+
+    /**
+     * 处理响应结果，处理结果填入到 result，根据请求位置不同写入不同的内容
+     * 比如搜索书籍是 result.list
+     */
+    buildResponse() {
+
+    }
+
+    /**
+     * 执行请求，响应信息填入到 params.responseHeaders(响应头) 和 responseUrl
+     */
+    requestUrl() {
+
+    }
+
+    /**
+     * 处理管道 || 和 js
+     * @param str
+     * @returns {*[]}
+     */
+    pipeStr(str) {
+        const res = []
+
+        const setFunc = (funStr) => {
+            if (str.indexOf("@js") >= 0 || str.indexOf("@js:") >= 0) {
+                // 存在js，这需要判断是否存在 || 管道连接
+                const jsStr = "";
+                const resItem = {
+                    type: 'function', // function/string
+                    callback: (config, params, result) => {
+                        // 执行js，这里需要用到局部作用域，所以还是使用 eval
+                        return eval(jsStr);
+                    }
+                }
+                res.push(resItem)
+            } else {
+
+            }
+        }
+
+        /**
+         * 剥离js
+         * 利用正则匹配来区分这两部分，string 和 js；
+         * string部分自行判断是xpath还是uri
+         *
+         * @param input
+         */
+        const parseStringAndJs = (input) => {
+            const trimmedStr = input.trim();
+            const jsPrefix = "@js:";
+            const parts = trimmedStr.split(jsPrefix);
+
+            if (parts.length === 1) {
+                return {type: "string", stringPart: trimmedStr};
+            }
+
+            let jsPart = parts.pop().trim();
+            let stringPart = parts.join(jsPrefix).trim();
+
+            if (stringPart.endsWith("||")) {
+                stringPart = stringPart.slice(0, -2).trim();
+            }
+
+            if (jsPart.startsWith("\n")) {
+                jsPart = jsPart.slice(1);
+            }
+
+            if (jsPart.startsWith("\t")) {
+                jsPart = jsPart.slice(1);
+            }
+
+            return {
+                type: "mixed",
+                stringPart: stringPart,
+                jsPart: jsPart
+            };
+        }
+
+        //
+        let parseRes = parseStringAndJs(str);
+        // 有个先后顺序的问题
+        if (!parseRes.stringPart) {
+            const inputStr = parseRes.stringPart
+            // TODO 剥离剩余的内容，是 string还是语法糖
+
+
+            // 全当 string 处理，根据来源自行区分是uri还是xpath
+            res.push({
+                type: 'string', // function/string
+                content: (config, params, result) => {
+                    // 执行js，存在替换的问题
+                    const {keyWord, pageIndex, offset, filter} = params
+                    let resStr = inputStr.replaceAll(`%@keyWord`, keyWord)
+                        .replaceAll(`%@pageIndex`, pageIndex)
+                        .replaceAll(`%@offset`, offset)
+                        .replaceAll(`%@filter`, filter)
+
+                    // result 如果要参与替换，内容只能是字符串
+                    if (typeof result === 'string') {
+                        resStr = resStr.replaceAll(`%@result`, result)
+                    }
+                    return resStr
+                }
+            })
+        }
+
+        if (!parseRes.jsPart) {
+            res.push({
+                type: 'function', // function/string
+                callback: (config, params, result) => {
+                    // 执行js，这里需要用到局部作用域，所以还是使用 eval
+                    return eval(jsStr);
+                }
+            })
+        }
+
+        return res
+    }
+
+}
+
 /**
  * xbs 工具
  */
@@ -339,6 +732,16 @@ class XbsToolService extends Service {
             .replaceAll(': "', ':"');
     }
 
+    /**
+     * 搜索书籍
+     * @param sourceJson 源
+     * @param search 搜索名称
+     * @param type 类型
+     */
+    searchBook(sourceJson, search, type) {
+        const sourceTools = new SourceTools(sourceJson);
+        const searchRes = sourceTools.searchBook(search, type)
+    }
 }
 
 XbsToolService.toString = () => '[class XbsToolService]';

@@ -69,6 +69,16 @@ class ReaderController extends Controller {
     }
 
     /**
+     * 书籍数据库操作
+     * @param args
+     * @returns {Promise<{result: {}, action, message: string}>}
+     */
+    async bookInfoOperation(args) {
+        return this.dataOperator('bookInfo', args.action, args.data, args.cover)
+    }
+
+
+    /**
      * 数据库操作
      * @param tableName 数据库表
      * @param action 操作
@@ -208,6 +218,52 @@ class ReaderController extends Controller {
     }
 
     //</editor-fold>
+
+    /**
+     * 搜索书籍
+     * @param args
+     * @returns {Promise<void>}
+     */
+    async searchBook(args) {
+        const {service} = this
+
+        if (service.utils.nullObj(args)) {
+            return this.error("null data")
+        }
+
+        const {type, search, platform} = args
+        if (!type || !search || !platform) {
+            return this.error("error search params")
+        }
+
+        const reader = service.reader
+
+        switch (platform) {
+            case 'StandarReader': {
+                //
+                // 获取所有的符合条件的源
+                const sourceList = await reader.queryData('bookSource', {
+                    platform: 'StandarReader',
+                    sourceType: type,
+                    enable: 1,
+                })
+                if (sourceList && sourceList.length > 0) {
+                    // 处理源
+                    sourceList.forEach(async source => {
+                        if (source.hasOwnProperty('sourceJson')) {
+                            const sourceJson = JSON.parse(source['sourceJson'])
+                            if (sourceJson.hasOwnProperty('searchBook')) {
+                                const res = await this.xbs.searchBook(sourceJson, search, type)
+                            }
+                        }
+                    })
+                }
+                break
+            }
+        }
+
+
+    }
 
     //<editor-fold desc="文件操作">
     readFile(args) {

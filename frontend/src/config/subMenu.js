@@ -117,14 +117,14 @@ export default {
     reader: {
         'menu_100': {
             icon: 'profile',
-            title: '书源',
-            pageName: 'ReaderAnalyseIndex',
+            title: '书籍',
+            pageName: 'ReaderBooksIndex',
             params: {}
         },
         'menu_200': {
             icon: 'profile',
-            title: '书籍',
-            pageName: 'ReaderBooksIndex',
+            title: '书源',
+            pageName: 'ReaderAnalyseIndex',
             params: {}
         },
     }
