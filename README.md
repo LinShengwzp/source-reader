@@ -78,7 +78,7 @@ config.openDevTools = true;
 {
   "vue": {
     "hostname": "localhost",
-    "port": 8080
+    "port": 15000
   }
 }
 ```
@@ -116,10 +116,16 @@ npm run start
 ```
 3. 构建
 
++ 加密步骤可略过
++ 可打包其他格式，详见 [package.json](package.json)
+
 ```shell
+# 加密
+npm run encrypt
+
 npm config set electron_builder_binaries_mirror=https://registry.npmmirror.com/-/binary/electron-builder-binaries/
 
-npm run build
+npm run build-wz 
 ```
 
 ## 功能
