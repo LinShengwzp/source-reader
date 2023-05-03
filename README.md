@@ -72,7 +72,7 @@ npm run start
 config.openDevTools = true;
 ```
 
-请确保前端启动端口为 8080，否则请修改配置文件
+请确保前端启动端口为 15000，否则请修改配置文件
 
 ```json
 {
