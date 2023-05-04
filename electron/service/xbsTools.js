@@ -4,6 +4,8 @@ const {Service} = require('ee-core');
 const {net} = require('electron');
 const iconv = require('iconv-lite')
 const querystring = require('querystring');
+const xpath = require('xpath')
+const dom = require('xmldom').DOMParser
 
 const xxTeaKey = [0xe5, 0x87, 0xbc, 0xe8, 0xa4, 0x86, 0xe6, 0xbb, 0xbf, 0xe9, 0x87, 0x91, 0xe6, 0xba, 0xa1, 0xe5];
 
@@ -438,13 +440,18 @@ class XPathParser {
 
     str
     xpath
+    domBody
 
-    constructor(str, xpath) {
+    constructor(str) {
         this.str = str
         this.xpath = xpath
+        if (str) {
+            this.domBody = new dom().parseFromString(str)
+        }
     }
 
     raw() {
+        return str;
     }
 
     // 返回内容
@@ -461,6 +468,7 @@ class XPathParser {
 
     // 返回查询结果，以数组保存
     queryWithXPath(strXPath) {
+        return xpath.select(strXPath, this.domBody)
     }
 }
 
@@ -727,10 +735,12 @@ class SourceTools {
             // 使用js处理内容
             const wrappedJsPart = `(${this.config["JSParser"]})`;
             this.result = (new Function(`return ${wrappedJsPart}`))()(this.config, this.params, resInfo)
+            return this.result;
         }
 
         // 使用 xpath 解析器
-
+        this.params.nativeTool.XPathParserWithSource = new XPathParser(resInfo)
+        // TODO 解析内容
     }
 
     /**
