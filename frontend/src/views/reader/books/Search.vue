@@ -43,13 +43,21 @@
                 <div class="node-item" v-for="node in searchData.searchList">
                     <a-row>
                         <a-col :span="4" class="node-name">
-                            {{ node.sourceName }}
+                            <div>{{ node.sourceName }}</div>
+                            <div>{{ node.result.length }}本</div>
                         </a-col>
-                        <a-col :span="20">
+                        <a-col :span="20" class="book-list">
                             <div class="book-container" v-for="book in node.result">
-                                <div class="book-item">
-                                    <img class="book-cover" :src="book.cover" :alt="book.bookName">
-                                </div>
+                                <a-popover :title="book.bookName" style="width: 4rem">
+                                    <template slot="content">
+                                        <p>{{ book.author }}</p>
+                                        <p>{{ book.desc}}</p>
+                                    </template>
+                                    <div class="book-item">
+                                        <img class="book-cover" :src="book.cover">
+                                        <div class="book-name">{{ book.bookName }}</div>
+                                    </div>
+                                </a-popover>
                             </div>
                         </a-col>
                     </a-row>
@@ -116,29 +124,54 @@ export default {
   position: relative;
   margin: 1rem;
   height: 100%;
-    overflow-y: scroll;
+  overflow-y: scroll;
 
   .result-container {
-
     .node-item {
-      .node-name {
+      border: 0.1rem solid #83e0b0;
+      border-radius: 0.5rem;
+      padding: 0.1rem;
 
+      .node-name {
+        padding: 1rem;
+        text-align: center;
+        line-height: 2rem;
       }
 
-      .book-container {
-        position: relative;
-        display: inline-block;
+      .book-list {
+        overflow-x: scroll;
+        display: flex;
 
-        .book-item {
-          width: 5rem;
-          height: 8rem;
-          margin: 1rem;
+        .book-container {
+          position: relative;
+          display: inline-block;
 
-          .book-cover {
-            width: 100%;
+          .book-item {
+            position: relative;
+            width: 5rem;
+            height: 8rem;
+            margin: 0.1rem 1rem;
+            cursor: pointer;
+
+            .book-cover {
+              width: 5rem;
+              height: 7rem;
+              box-shadow: #9a9a9a 0.2rem 0.2rem 0.5rem 0.1rem;
+            }
+
+            .book-name {
+              text-align: center;
+              font-size: smaller;
+              overflow: hidden;
+              white-space: nowrap;
+              text-overflow: ellipsis;
+            }
           }
         }
+
       }
+
+
     }
   }
 
