@@ -232,14 +232,29 @@ const byteTools = {
 }
 
 const requestTools = {
-    get(url, params, headers, encode) {
-
-        // 处理 params
-        if (params) {
-            for (const key in params) {
-                const val = params[key]
+    /**
+     * 发起请求
+     * @param url
+     * @param data
+     * @param headers
+     * @param method
+     * @param encode
+     * @returns {Promise<unknown>}
+     */
+    request(url, data, headers, method, encode) {
+        if (data) {
+            for (const key in data) {
+                let val = data[key];
                 if (val === null || (typeof val === "undefined")) {
                     continue
+                }
+                if (typeof val === 'string' && /[^\x00-\xff]/.test(val)) {
+                    // 处理非 utf-8 编码
+                    if (encode === 'gbk' || encode === 'gb2312') {
+                        val = iconv.encode(val, 'gbk')
+                            .toString('hex').toUpperCase()
+                            .replace(/.{2}/g, '%$&');
+                    }
                 }
                 if (url.indexOf("?") > 0) {
                     url += `&${key}=${val}`
@@ -248,67 +263,11 @@ const requestTools = {
                 }
             }
         }
-
-        // 1. 新建 net.request 请求
         const request = net.request({
             headers: headers,
-            method: 'GET',
-            url: url,
-        })
-        return new Promise((resolve, reject) => {
-            const resGet = (data) => {
-                console.log("response:", data)
-                // 4. 记得关闭请求
-                request.end()
-                reject(data)
-            }
-            // 3. 处理返回结果
-            request.on('response', response => {
-                debugger
-                response.on('data', res => {
-                    // res 是 Buffer 数据
-                    // 通过 toString() 可以转为 String
-                    // 详见： https://blog.csdn.net/KimBing/article/details/124299412
-                    let data = JSON.parse(res.toString())
-                    resGet(data)
-                })
-                response.on('end', () => {
-                })
-            })
-        })
-
-    },
-    async post(url, data, headers, encode) {
-        // 1. 新建 net.request 请求
-
-        // 编码
-        if (data) {
-            // 处理非 utf-8 编码
-            if (encode === 'gbk' || encode === 'gb2312') {
-                for (const key in data) {
-                    let val = data[key];
-                    if (val === null || (typeof val === "undefined")) {
-                        continue
-                    }
-                    if (typeof val === 'string' && /[^\x00-\xff]/.test(val)) {
-                        val = iconv.encode(val, 'gbk')
-                            .toString('hex').toUpperCase()
-                            .replace(/.{2}/g, '%$&');
-                    }
-                    if (url.indexOf("?") > 0) {
-                        url += `&${key}=${val}`
-                    } else {
-                        url += `?${key}=${val}`
-                    }
-                }
-            }
-        }
-        const request = net.request({
-            headers: headers,
-            method: 'POST',
+            method: method,
             url: url
         })
-
         return new Promise((resolve, reject) => {
             // 2. 通过 request.write() 方法，发送的 post 请求数据需要先进行序列化，变成纯文本的形式
 
@@ -322,7 +281,12 @@ const requestTools = {
             });
             request.end();
         })
-
+    },
+    get(url, params, headers, encode) {
+        return this.request(url, params, headers, "GET", encode)
+    },
+    async post(url, data, headers, encode) {
+        return this.request(url, params, headers, "POST", encode)
     }
 }
 
@@ -441,12 +405,20 @@ class XPathParser {
     str
     xpath
     domBody
+    element
 
-    constructor(str) {
-        this.str = str
+    constructor(content) {
         this.xpath = xpath
-        if (str) {
-            this.domBody = new dom().parseFromString(str)
+        if (content) {
+
+            if (typeof content === 'string') {
+                this.str = content
+                this.domBody = new dom().parseFromString(content)
+            }
+            if (typeof content === 'object') {
+                // TODO 怎么处理？
+                this.element = content
+            }
         }
     }
 
@@ -468,7 +440,13 @@ class XPathParser {
 
     // 返回查询结果，以数组保存
     queryWithXPath(strXPath) {
-        return xpath.select(strXPath, this.domBody)
+        if (this.domBody) {
+            return xpath.select(strXPath, this.domBody)
+        }
+        if (this.element) {
+            return xpath.select(strXPath, this.element)
+        }
+        return null
     }
 }
 
@@ -556,8 +534,12 @@ class SourceTools {
             XPathParserWithSource(str) {
             },
         },
-        responseUrl() {
-        }
+        keyWord: '',
+        offset: 0,
+        pageIndex: 0,
+        requestUrls: [],
+        responseUrl: '',
+        responseHeaders: {},
     }
     // 存放结果
     result
@@ -739,8 +721,21 @@ class SourceTools {
         }
 
         // 使用 xpath 解析器
-        this.params.nativeTool.XPathParserWithSource = new XPathParser(resInfo)
-        // TODO 解析内容
+        if (typeof resInfo === 'string') {
+            // 当你归来依旧是string
+            // 解析 list
+            if (config['list']) {
+                const list = this.xPathMatch(resInfo, config['list'])
+                if (list && list.length > 0) {
+                    this.result = {
+                        maxPage: 1,
+                        success: 1,
+                        list: list.map(item => this.buildXPathContent(item, ['bookName', 'author', 'cover', 'desc', 'status', 'wordCount', 'lastChapterTitle', 'detailUrl']))
+                    }
+                    return this.result
+                }
+            }
+        }
     }
 
     /**
@@ -759,8 +754,9 @@ class SourceTools {
 
         const encode = this.getEncoding('requestParamsEncode')
         return new Promise(async (resolve, reject) => {
-            if (reqInfo.POST) {
-                const response = await requestTools.post(reqInfo.url, reqInfo.httpParams, reqInfo.httpHeaders, encode)
+            let response = await requestTools.request(reqInfo.url, reqInfo.httpParams, reqInfo.httpHeaders, reqInfo.POST ? "POST" : "GET", encode)
+
+            if (response) {
                 let data = '';
                 this.params.responseHeaders = response.headers
                 this.params.responseUrl = this.reqInfo.url
@@ -782,9 +778,8 @@ class SourceTools {
                     this.resInfo = data
                     resolve(data)
                 });
-            } else {
-                const res = await requestTools.get(reqInfo.url, reqInfo.httpParams, reqInfo.httpHeaders, encode)
             }
+
         })
     }
 
@@ -808,6 +803,77 @@ class SourceTools {
             }
         }
         return encode
+    }
+
+    /**
+     * 将内容通过 xpath 标签命令解析
+     * @param content 被解析的内容
+     * @param tagNames 标签
+     * @returns {{}|null}
+     */
+    buildXPathContent(content, tagNames) {
+        if (!content || !tagNames || tagNames.length < 1) {
+            return null
+        }
+        const {config} = this
+        const res = {}
+        tagNames.forEach(tag => {
+            if (config.hasOwnProperty(tag)) {
+                // 标签解析命令
+                const tagCommand = config[tag]
+                res[tag] = this.xPathMatch(content, tagCommand)
+            }
+        })
+
+        return res
+
+    }
+
+    /**
+     * 处理xpath
+     * 解析标签包括 xpath js tagCommand 三种不同
+     * @param content 被解析的字符串
+     * @param tagCommand 解析标签
+     * @returns {*[]}
+     */
+    xPathMatch(content, tagCommand) {
+        if (!content || !tagCommand) {
+            return null;
+        }
+        const commandPipe = this.pipeStr(tagCommand)
+        const xPathParser = new XPathParser(content.toString())
+
+        // 管道运行时，result的临时存储
+        let resultTemp = content;
+        // 执行
+        for (let i = 0; i < commandPipe.length; i++) {
+            const pipe = commandPipe[i]
+            if (!pipe || !pipe.type) {
+                continue;
+            }
+            switch (pipe.type) {
+                case "javascript":
+                case "replace": {
+                    resultTemp = pipe.callback(this.config, this.params, resultTemp)
+                    break
+                }
+                case "string": {
+                    // xpath
+                    resultTemp = xPathParser.queryWithXPath(tagCommand)
+                    if (resultTemp && resultTemp.length > 1) {
+                        resultTemp = resultTemp.map(i => i.toString())
+                    } else {
+                        if (resultTemp[0] && resultTemp[0].hasOwnProperty("value")) {
+                            resultTemp = resultTemp[0].value
+                        } else {
+                            resultTemp = resultTemp.toString()
+                        }
+                    }
+                    break
+                }
+            }
+        }
+        return resultTemp
     }
 
     /**
@@ -948,7 +1014,7 @@ class SourceTools {
                                 callback: (config, params, result) => {
                                     // 执行js，存在替换的问题
                                     const {keyWord, pageIndex, offset, filter} = params
-                                    let resStr = inputStr.replaceAll(`%@keyWord`, keyWord)
+                                    let resStr = part.content.replaceAll(`%@keyWord`, keyWord)
                                         .replaceAll(`%@pageIndex`, pageIndex)
                                         .replaceAll(`%@offset`, offset)
                                         .replaceAll(`%@filter`, filter)
@@ -957,6 +1023,9 @@ class SourceTools {
                                     if (typeof result === 'string') {
                                         resStr = resStr.replaceAll(`%@result`, result)
                                     }
+
+                                    // xpath则不用处理，它本身没有占位符
+
                                     return resStr
                                 }
                             })

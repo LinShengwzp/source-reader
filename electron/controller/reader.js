@@ -247,6 +247,10 @@ class ReaderController extends Controller {
                         platform: 'StandarReader',
                         sourceType: type,
                         enable: 1,
+                        page: {
+                            index: 2, //从 第 1 页 开始
+                            size: 1,
+                        }
                     })
                     if (sourceList && sourceList.length > 0) {
                         // 处理源
