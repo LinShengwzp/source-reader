@@ -2,6 +2,8 @@
 
 const {Service} = require('ee-core');
 const {net} = require('electron');
+const iconv = require('iconv-lite')
+const querystring = require('querystring');
 
 const xxTeaKey = [0xe5, 0x87, 0xbc, 0xe8, 0xa4, 0x86, 0xe6, 0xbb, 0xbf, 0xe9, 0x87, 0x91, 0xe6, 0xba, 0xa1, 0xe5];
 
@@ -276,21 +278,45 @@ const requestTools = {
     },
     async post(url, data, headers, encode) {
         // 1. 新建 net.request 请求
+
+        // 编码
+        if (data) {
+            // 处理非 utf-8 编码
+            if (encode === 'gbk' || encode === 'gb2312') {
+                for (const key in data) {
+                    let val = data[key];
+                    if (val === null || (typeof val === "undefined")) {
+                        continue
+                    }
+                    if (typeof val === 'string' && /[^\x00-\xff]/.test(val)) {
+                        val = iconv.encode(val, 'gbk')
+                            .toString('hex').toUpperCase()
+                            .replace(/.{2}/g, '%$&');
+                    }
+                    if (url.indexOf("?") > 0) {
+                        url += `&${key}=${val}`
+                    } else {
+                        url += `?${key}=${val}`
+                    }
+                }
+            }
+        }
         const request = net.request({
             headers: headers,
             method: 'POST',
-            url: url,
+            url: url
         })
+
         return new Promise((resolve, reject) => {
             // 2. 通过 request.write() 方法，发送的 post 请求数据需要先进行序列化，变成纯文本的形式
-            request.write(JSON.stringify(data))
+
             // 3. 处理返回结果
             request.on('response', response => resolve(response))
             request.on('error', (error) => {
                 reject(error);
             });
             request.on('redirect', (statusCode, method, redirectUrl, responseHeaders) => {
-                console.log("123")
+                console.log("http request has been redirected!")
             });
             request.end();
         })
@@ -654,7 +680,7 @@ class SourceTools {
             }
         }
         // url 编码
-        this.reqInfo.url = decodeURIComponent(this.reqInfo.url)
+        this.reqInfo.url = this.reqInfo.url
         this.params.requestUrls = [this.reqInfo.url]
     }
 
@@ -701,10 +727,11 @@ class SourceTools {
             // 使用js处理内容
             const wrappedJsPart = `(${this.config["JSParser"]})`;
             const res = (new Function(`return ${wrappedJsPart}`))()(this.config, this.params, resInfo)
-            console.log(res)
+            this.result = res
         }
 
         // 使用 xpath 解析器
+
     }
 
     /**
@@ -715,6 +742,12 @@ class SourceTools {
         if (!reqInfo || !reqInfo.url) {
             return;
         }
+
+        // 禁用cookie
+        if (reqInfo.forbidCookie) {
+            reqInfo.httpHeaders['Cookie'] = 'none'
+        }
+
         const encode = this.getEncoding('requestParamsEncode')
         return new Promise(async (resolve, reject) => {
             if (reqInfo.POST) {
