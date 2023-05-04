@@ -43,6 +43,7 @@
 <script>
 import EditorArea from "@/components/EditorArea.vue";
 import {SourceType, SourcePlatform} from "@/model/typeModel";
+import {ipcApiRoute} from "@/api/main";
 
 export default {
     name: 'search',
@@ -66,7 +67,7 @@ export default {
         init(type, search, platform) {
             const that = this
             that.searchData.type = type || 'text'
-            that.searchData.search = search || ''
+            that.searchData.search = search || '我的倾城'
             that.searchData.platform = platform || 'StandarReader'
         },
         childInputChange() {
@@ -75,8 +76,15 @@ export default {
         /**
          * 搜索
          */
-        handleSearchBook() {
-
+        async handleSearchBook() {
+            const that = this
+            const searchRes = await that.$ipc.invoke(ipcApiRoute.searchBook, that.searchData)
+            console.log("search result", searchRes)
+            if (searchRes && searchRes.code === 200) {
+                that.$message.success("success");
+            } else {
+                that.$message.error(searchRes.message)
+            }
         }
     }
 }

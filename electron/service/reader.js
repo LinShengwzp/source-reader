@@ -1,10 +1,10 @@
 'use strict';
 
-const {Service} = require('ee-core');
+const {Service} =
+    require('ee-core');
 const Storage = require('ee-core/storage');
 const _ = require('lodash');
 const path = require('path');
-const {type} = require("../config/encrypt");
 
 /**
  * 阅读相关数据库操作
@@ -58,6 +58,7 @@ class ReaderSourceStorageService extends Service {
             },
             sourceType: {
                 type: 'TEXT',
+                default: 'text',
                 comment: '书源类型'
             },
             sourceUrl: {

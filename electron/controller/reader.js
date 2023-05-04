@@ -77,7 +77,6 @@ class ReaderController extends Controller {
         return this.dataOperator('bookInfo', args.action, args.data, args.cover)
     }
 
-
     /**
      * 数据库操作
      * @param tableName 数据库表
@@ -252,17 +251,14 @@ class ReaderController extends Controller {
                     sourceList.forEach(async source => {
                         if (source.hasOwnProperty('sourceJson')) {
                             const sourceJson = JSON.parse(source['sourceJson'])
-                            if (sourceJson.hasOwnProperty('searchBook')) {
-                                const res = await this.xbs.searchBook(sourceJson, search, type)
-                            }
+                            const res = await this.xbs.searchBook(sourceJson, search, type || "text")
+                            console.log(res)
                         }
                     })
                 }
                 break
             }
         }
-
-
     }
 
     //<editor-fold desc="文件操作">
