@@ -22,7 +22,7 @@
                     </a-row>
                 </a-col>
 
-                <a-col v-if="searchConfig.searchBook" :span="18" class="modify-container">
+                <a-col v-if="searchConfig.searchBook" :span="18" class="modify-container" style="overflow: scroll">
                     <search ref="bookSearch"/>
                 </a-col>
 

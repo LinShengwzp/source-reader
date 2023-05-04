@@ -260,7 +260,11 @@ class ReaderController extends Controller {
                                 const sourceJson = JSON.parse(source['sourceJson'])
                                 const res = await this.xbs.searchBook(sourceJson, search, type || "text")
                                 if (res && res.result) {
-                                    searchResult = [...searchResult, ...res.result.list]
+                                    searchResult.push({
+                                        sourceId: source.id,
+                                        sourceName: source.sourceName,
+                                        result: res.result.list,
+                                    })
                                 }
                             }
                         }
@@ -268,9 +272,7 @@ class ReaderController extends Controller {
                     break
                 }
             }
-            resolve({
-                list: searchResult
-            })
+            resolve(searchResult)
         })
 
     }

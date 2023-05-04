@@ -665,9 +665,11 @@ class SourceTools {
         // 补充请求地址
         if (!this.reqInfo.url.startsWith("http")) {
             const {host} = this.config
-            if (!host.endsWith("/")) {
-                this.reqInfo.url = `${host}${this.reqInfo.url.startsWith("/") ? "" : "/"}${this.reqInfo.url}`
+            if (host.endsWith("/")) {
+                // 去掉最后的/
+                host.slice(0, host.length - 1)
             }
+            this.reqInfo.url = `${host}${this.reqInfo.url.startsWith("/") ? "" : "/"}${this.reqInfo.url}`
         }
         // url 编码
         this.reqInfo.url = this.reqInfo.url
@@ -859,6 +861,30 @@ class SourceTools {
                 }
                 case "string": {
                     // xpath
+
+                    // TODO 处理 @data-original
+                    let needOriginal = false
+                    if (tagCommand.indexOf("@data-original") >= 0) {
+                        needOriginal = true
+                        tagCommand = tagCommand.replaceAll("@data-original", "@src")
+
+                        if (tagCommand.endsWith("/")) {
+                            tagCommand = tagCommand.slice(0, tagCommand.length - 1)
+                        }
+                    }
+
+                    const addDomain = (url) => {
+                        if (!url.startsWith("http")) {
+                            const {host} = this.config
+                            if (host.endsWith("/")) {
+                                // 去掉最后的/
+                                host.slice(0, host.length - 1)
+                            }
+                            url = `${host}${url.startsWith("/") ? "" : "/"}${url}`
+                        }
+                        return url
+                    }
+
                     resultTemp = xPathParser.queryWithXPath(tagCommand)
                     if (resultTemp && resultTemp.length > 1) {
                         resultTemp = resultTemp.map(i => i.toString())
@@ -867,6 +893,9 @@ class SourceTools {
                             resultTemp = resultTemp[0].value
                         } else {
                             resultTemp = resultTemp.toString()
+                        }
+                        if (needOriginal) {
+                            resultTemp = addDomain(resultTemp)
                         }
                     }
                     break
