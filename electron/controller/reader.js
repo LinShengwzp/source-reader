@@ -237,28 +237,38 @@ class ReaderController extends Controller {
 
         const reader = service.reader
 
-        switch (platform) {
-            case 'StandarReader': {
-                //
-                // 获取所有的符合条件的源
-                const sourceList = await reader.queryData('bookSource', {
-                    platform: 'StandarReader',
-                    sourceType: type,
-                    enable: 1,
-                })
-                if (sourceList && sourceList.length > 0) {
-                    // 处理源
-                    sourceList.forEach(async source => {
-                        if (source.hasOwnProperty('sourceJson')) {
-                            const sourceJson = JSON.parse(source['sourceJson'])
-                            const res = await this.xbs.searchBook(sourceJson, search, type || "text")
-                            console.log(res)
-                        }
+        return new Promise(async (resolve, reject) => {
+            let searchResult = []
+            switch (platform) {
+                case 'StandarReader': {
+                    //
+                    // 获取所有的符合条件的源
+                    const sourceList = await reader.queryData('bookSource', {
+                        platform: 'StandarReader',
+                        sourceType: type,
+                        enable: 1,
                     })
+                    if (sourceList && sourceList.length > 0) {
+                        // 处理源
+                        for (const sourceIndex in sourceList) {
+                            const source = sourceList[sourceIndex]
+                            if (source.hasOwnProperty('sourceJson')) {
+                                const sourceJson = JSON.parse(source['sourceJson'])
+                                const res = await this.xbs.searchBook(sourceJson, search, type || "text")
+                                if (res && res.result) {
+                                    searchResult = [...searchResult, ...res.result.list]
+                                }
+                            }
+                        }
+                    }
+                    break
                 }
-                break
             }
-        }
+            resolve({
+                list: searchResult
+            })
+        })
+
     }
 
     //<editor-fold desc="文件操作">

@@ -606,13 +606,13 @@ class SourceTools {
         }
 
         // 处理请求信息
-        this.buildRequestUrl()
+        await this.buildRequestUrl()
 
         // 执行请求
         await this.requestUrl()
 
         // 填入结果
-        this.buildResponse()
+        await this.buildResponse()
 
         // 处理 requestInfo host httpParams
         return {
@@ -625,7 +625,7 @@ class SourceTools {
     /**
      * 处理请求信息，处理结果填入 params.requestUrls(数组？)
      */
-    buildRequestUrl() {
+    async buildRequestUrl() {
         // 处理普通url，占位符，@js，url还需要按需接上url
         const {requestInfo, host, httpHeaders} = this.config
 
@@ -726,8 +726,7 @@ class SourceTools {
         if (this.config["JSParser"]) {
             // 使用js处理内容
             const wrappedJsPart = `(${this.config["JSParser"]})`;
-            const res = (new Function(`return ${wrappedJsPart}`))()(this.config, this.params, resInfo)
-            this.result = res
+            this.result = (new Function(`return ${wrappedJsPart}`))()(this.config, this.params, resInfo)
         }
 
         // 使用 xpath 解析器
@@ -1084,8 +1083,10 @@ class XbsToolService extends Service {
     async searchBook(sourceJson, search, type) {
         const sourceTools = new SourceTools(sourceJson);
         // TODO 处理初始化pageIndex
-        const searchRes = await sourceTools.searchBook(search, type, 0, 1)
-        console.log(searchRes)
+        return new Promise(async (resolve, reject) => {
+            const searchRes = await sourceTools.searchBook(search, type, 0, 1)
+            resolve(searchRes)
+        })
     }
 }
 

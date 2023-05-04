@@ -67,7 +67,7 @@ export default {
         init(type, search, platform) {
             const that = this
             that.searchData.type = type || 'text'
-            that.searchData.search = search || '我的倾城'
+            that.searchData.search = search || '都市'
             that.searchData.platform = platform || 'StandarReader'
         },
         childInputChange() {
