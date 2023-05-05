@@ -38,38 +38,50 @@
 
         </a-form>
 
-        <div class="search-result-container">
-            <div class="result-container">
-                <div class="node-item" v-for="node in searchData.searchList">
-                    <a-row>
-                        <a-col :span="4" class="node-name">
-                            <div>{{ node.sourceName }}</div>
-                            <div>{{ node.result.length }}本</div>
-                        </a-col>
-                        <a-col :span="20" class="book-list">
-                            <div class="book-container" v-for="book in node.result">
-                                <a-popover :title="book.bookName" style="width: 4rem">
-                                    <template slot="content">
-                                        <p>{{ book.author }}</p>
-                                        <p>{{ book.desc}}</p>
-                                    </template>
-                                    <div class="book-item">
-                                        <img class="book-cover" :src="book.cover">
-                                        <div class="book-name">{{ book.bookName }}</div>
-                                    </div>
-                                </a-popover>
-                            </div>
-                        </a-col>
-                    </a-row>
+        <a-spin :spinning="searchData.loading" tip="加载中..." style="height: 100%">
+            <div class="search-result-container">
+                <div class="result-container">
+                    <div class="node-item" v-for="node in searchData.searchList">
+                        <a-row>
+                            <a-col :span="4" class="node-name">
+                                <div>{{ node.sourceName }}</div>
+                                <div>{{ node.result.length }}本</div>
+                            </a-col>
+                            <a-col :span="20" class="book-list">
+                                <div class="book-container" v-for="book in node.result">
+                                    <a-popover :title="book.bookName" style="width: 4rem">
+                                        <template slot="content">
+                                            <p>{{ book.author }}</p>
+                                            <p>{{ book.desc }}</p>
+                                        </template>
+                                        <div class="book-item">
+                                            <img class="book-cover" :src="book.cover">
+                                            <div class="book-name">{{ book.bookName }}</div>
+                                        </div>
+                                    </a-popover>
+                                </div>
+                            </a-col>
+                        </a-row>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            <a-pagination
+                    show-size-changer
+                    :default-page-size="searchData.page.size"
+                    :default-current="searchData.page.index"
+                    :total="searchData.page.count"
+                    @change="handlePageChange"
+                    @showSizeChange="onShowSizeChange"
+            />
+        </a-spin>
+
     </div>
 </template>
 
 <script>
 import EditorArea from "@/components/EditorArea.vue";
-import {SourceType, SourcePlatform} from "@/model/typeModel";
+import {SourcePlatform, SourceType} from "@/model/typeModel";
 import {ipcApiRoute} from "@/api/main";
 
 export default {
@@ -80,10 +92,16 @@ export default {
             SourceType,
             SourcePlatform,
             searchData: {
+                loading: false,
                 type: 'text',
                 platform: 'StandarReader',
                 search: '',
-                searchList: []
+                searchList: [],
+                page: {
+                    index: 19, //从 第 1 页 开始
+                    size: 1,
+                    count: 0
+                }
             },
         }
     },
@@ -106,13 +124,29 @@ export default {
         async handleSearchBook() {
             const that = this
             that.searchData.searchList = []
+            that.searchData.loading = true
             const searchRes = await that.$ipc.invoke(ipcApiRoute.searchBook, that.searchData)
-            console.log("search result", searchRes)
-            if (searchRes && searchRes.length > 0) {
-                that.searchData.searchList = [...that.searchData.searchList, ...searchRes]
+            console.log("search Result", searchRes)
+            if (searchRes.result && searchRes.result.length > 0) {
+                that.$nextTick(() => {
+                    that.searchData.searchList = searchRes.result
+                    that.searchData.page = searchRes.page
+                    that.searchData.loading = false
+                })
             } else {
+                that.searchData.loading = false
                 that.$message.error(searchRes.message)
             }
+        },
+        onShowSizeChange(current, pageSize) {
+            console.log(current, pageIndex);
+            this.searchData.page.index = current
+            this.searchData.page.size = pageSize
+            this.handleSearchBook()
+        },
+        handlePageChange(page, pageIndex) {
+            this.searchData.page.index = page
+            this.handleSearchBook()
         }
     }
 }
@@ -131,6 +165,7 @@ export default {
       border: 0.1rem solid #83e0b0;
       border-radius: 0.5rem;
       padding: 0.1rem;
+      margin: 0.1rem;
 
       .node-name {
         padding: 1rem;

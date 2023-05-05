@@ -5,6 +5,7 @@ const {net} = require('electron');
 const iconv = require('iconv-lite')
 const querystring = require('querystring');
 const xpath = require('xpath')
+const jp = require("jsonpath")
 const dom = require('xmldom').DOMParser
 
 const xxTeaKey = [0xe5, 0x87, 0xbc, 0xe8, 0xa4, 0x86, 0xe6, 0xbb, 0xbf, 0xe9, 0x87, 0x91, 0xe6, 0xba, 0xa1, 0xe5];
@@ -257,7 +258,11 @@ const requestTools = {
                     }
                 }
                 if (url.indexOf("?") > 0) {
-                    url += `&${key}=${val}`
+                    if (url.endsWith("?")) {
+                        url += `${key}=${val}`
+                    } else {
+                        url += `&${key}=${val}`
+                    }
                 } else {
                     url += `?${key}=${val}`
                 }
@@ -410,14 +415,18 @@ class XPathParser {
     constructor(content) {
         this.xpath = xpath
         if (content) {
-
             if (typeof content === 'string') {
+                // 处理 xhtml 格式问题
+                content = content.replace(/<html\s.*?>/g, "<html>");
                 this.str = content
                 this.domBody = new dom().parseFromString(content)
+                this.element = this.domBody.documentElement
             }
             if (typeof content === 'object') {
                 // TODO 怎么处理？
-                this.element = content
+                this.domBody = content
+                this.element = this.domBody
+                this.str = content.toString()
             }
         }
     }
@@ -428,23 +437,49 @@ class XPathParser {
 
     // 返回内容
     content() {
+        if (this.element) {
+            if (this.element.hasOwnProperty("data")) {
+                return this.element.data
+            }
+            if (this.element.hasOwnProperty("value")) {
+                return this.element.value
+            }
+            if (this.element.hasOwnProperty("firstChild")) {
+                return this.element.firstChild.data
+            }
+        }
+        return null
     }
 
     // 返回字符串
     tagName() {
+        if (this.element) {
+            return this.element.tagName
+        }
+        return null
     }
 
     // 返回字典
     attributes() {
+        if (this.element) {
+            return this.element.attributes
+        }
+        return null
     }
 
     // 返回查询结果，以数组保存
     queryWithXPath(strXPath) {
-        if (this.domBody) {
-            return xpath.select(strXPath, this.domBody)
-        }
-        if (this.element) {
-            return xpath.select(strXPath, this.element)
+        try {
+            if (this.domBody) {
+                return xpath.select(strXPath, this.domBody)
+            }
+
+            if (this.element) {
+                return xpath.select(strXPath, this.element)
+            }
+        } catch (e) {
+            console.error(`xpath tag [${strXPath}] parse failure`)
+            return null
         }
         return null
     }
@@ -608,7 +643,7 @@ class SourceTools {
         return {
             config: this.config,
             params: this.params,
-            result: this.result
+            result: this.result || []
         }
     }
 
@@ -671,6 +706,13 @@ class SourceTools {
             }
             this.reqInfo.url = `${host}${this.reqInfo.url.startsWith("/") ? "" : "/"}${this.reqInfo.url}`
         }
+
+        try {
+            new URL(this.reqInfo.url)
+        } catch (e) {
+            console.log(`error url: [${this.reqInfo.url}]`)
+        }
+
         // url 编码
         this.reqInfo.url = this.reqInfo.url
         this.params.requestUrls = [this.reqInfo.url]
@@ -687,18 +729,18 @@ class SourceTools {
         }
         const encode = this.getEncoding('requestParamsEncode')
 
+        let jsonPath = false
         // 判断响应格式
         switch (config.responseFormatType) {
             case 'base64str': {
                 break
             }
-            case 'html': {
-                break
-            }
+            case 'html':
             case 'xml': {
                 break
             }
             case 'json': {
+                jsonPath = true
                 break
             }
             case 'data': {
@@ -722,18 +764,20 @@ class SourceTools {
             return this.result;
         }
 
-        // 使用 xpath 解析器
+        // 使用 path 解析器
         if (typeof resInfo === 'string') {
             // 当你归来依旧是string
             // 解析 list
             if (config['list']) {
-                const list = this.xPathMatch(resInfo, config['list'])
+                const list = this.pathMatch(resInfo, config['list'], jsonPath)
                 if (list && list.length > 0) {
+                    let pageList = list.map(item => this.buildPathContent(item, ['bookName', 'author', 'cover', 'desc', 'status', 'wordCount', 'lastChapterTitle', 'detailUrl'], jsonPath));
                     this.result = {
                         maxPage: 1,
                         success: 1,
-                        list: list.map(item => this.buildXPathContent(item, ['bookName', 'author', 'cover', 'desc', 'status', 'wordCount', 'lastChapterTitle', 'detailUrl']))
+                        list: pageList
                     }
+
                     return this.result
                 }
             }
@@ -811,9 +855,10 @@ class SourceTools {
      * 将内容通过 xpath 标签命令解析
      * @param content 被解析的内容
      * @param tagNames 标签
+     * @param jsonPath 是否是jsonpath
      * @returns {{}|null}
      */
-    buildXPathContent(content, tagNames) {
+    buildPathContent(content, tagNames, jsonPath) {
         if (!content || !tagNames || tagNames.length < 1) {
             return null
         }
@@ -823,22 +868,22 @@ class SourceTools {
             if (config.hasOwnProperty(tag)) {
                 // 标签解析命令
                 const tagCommand = config[tag]
-                res[tag] = this.xPathMatch(content, tagCommand)
+                res[tag] = this.pathMatch(content, tagCommand, jsonPath)
             }
         })
 
         return res
-
     }
 
     /**
-     * 处理xpath
-     * 解析标签包括 xpath js tagCommand 三种不同
+     * 处理path，path可能是 xpath 或者 jsonpath
+     * 解析标签包括 path js tagCommand 三种不同
      * @param content 被解析的字符串
      * @param tagCommand 解析标签
+     * @param jsonPath 是否是jsonpath
      * @returns {*[]}
      */
-    xPathMatch(content, tagCommand) {
+    pathMatch(content, tagCommand, jsonPath) {
         if (!content || !tagCommand) {
             return null;
         }
@@ -861,15 +906,15 @@ class SourceTools {
                 }
                 case "string": {
                     // xpath
-
+                    let pathTag = pipe.callback(this.config, this.params, resultTemp)
                     // TODO 处理 @data-original
                     let needOriginal = false
-                    if (tagCommand.indexOf("@data-original") >= 0) {
+                    if (pathTag.indexOf("@data-original") >= 0) {
                         needOriginal = true
-                        tagCommand = tagCommand.replaceAll("@data-original", "@src")
+                        pathTag = pathTag.replaceAll("@data-original", "@src")
 
-                        if (tagCommand.endsWith("/")) {
-                            tagCommand = tagCommand.slice(0, tagCommand.length - 1)
+                        if (pathTag.endsWith("/")) {
+                            pathTag = pathTag.slice(0, pathTag.length - 1)
                         }
                     }
 
@@ -885,15 +930,43 @@ class SourceTools {
                         return url
                     }
 
-                    resultTemp = xPathParser.queryWithXPath(tagCommand)
-                    if (resultTemp && resultTemp.length > 1) {
-                        resultTemp = resultTemp.map(i => i.toString())
-                    } else {
-                        if (resultTemp[0] && resultTemp[0].hasOwnProperty("value")) {
-                            resultTemp = resultTemp[0].value
+                    // 解析path
+                    try {
+                        if (jsonPath) {
+                            if (typeof content === 'string') {
+                                content = JSON.parse(content)
+                            }
+                            resultTemp = jp.query(content, pathTag)
                         } else {
-                            resultTemp = resultTemp.toString()
+                            resultTemp = xPathParser.queryWithXPath(pathTag)
                         }
+                    } catch (e) {
+                        console.error(`path [${pathTag}] parse for content [${content}] failure`)
+                    }
+                    if (!resultTemp) {
+                        continue
+                    }
+                    if (resultTemp && resultTemp.length > 1) {
+                        if (!jsonPath) {
+                            // xpath 需要处理成 string方便下一层搜索
+                            resultTemp = resultTemp.map(i => i.toString())
+                        }
+                    } else {
+                        if (resultTemp.length === 0) {
+                            continue
+                        }
+                        const firstNode = resultTemp[0]
+                        if (!firstNode) {
+                            continue
+                        }
+
+                        // 直接取值
+                        if (jsonPath) {
+                            resultTemp = firstNode.toString()
+                        } else {
+                            resultTemp = new XPathParser(firstNode).content()
+                        }
+
                         if (needOriginal) {
                             resultTemp = addDomain(resultTemp)
                         }
@@ -1010,8 +1083,13 @@ class SourceTools {
                                 type: 'javascript', // javascript/string/
                                 callback: (config, params, result) => {
                                     // 执行js，这里需要用到局部作用域，但 new Function 默认使用全局作用域
-                                    const wrappedJsPart = `(function(config, params, result) {${part.content}})`;
-                                    return (new Function(`return ${wrappedJsPart}`))()(config, params, result)
+                                    try {
+                                        const wrappedJsPart = `(function(config, params, result) {${part.content}})`;
+                                        return (new Function(`return ${wrappedJsPart}`))()(config, params, result)
+                                    } catch (e) {
+                                        console.error(`execute function string error: [${part.content}]`)
+                                        return result
+                                    }
                                 }
                             })
                             break
@@ -1024,7 +1102,7 @@ class SourceTools {
                                 callback: (config, params, result) => {
                                     // 执行js，这里需要用到局部作用域，所以还是使用 eval
                                     if (typeof result === 'string') {
-                                        return result.replace(replaceStr, "");
+                                        return result.replaceAll(replaceStr, "");
                                     }
                                     return result
                                 }
@@ -1192,8 +1270,12 @@ class XbsToolService extends Service {
         const sourceTools = new SourceTools(sourceJson);
         // TODO 处理初始化pageIndex
         return new Promise(async (resolve, reject) => {
-            const searchRes = await sourceTools.searchBook(search, type, 0, 1)
-            resolve(searchRes)
+            try {
+                const searchRes = await sourceTools.searchBook(search, type, 0, 1)
+                resolve(searchRes)
+            } catch (e) {
+                reject(e)
+            }
         })
     }
 }

@@ -412,6 +412,9 @@ class ReaderSourceStorageService extends Service {
                         // 查询这个列和排序等，但是没有where匹配
                         needWhereData = item.hasOwnProperty('data')
                     }
+                    if (item.hasOwnProperty('data')) {
+                        needWhereData = true
+                    }
 
                     // 排序
                     if (dataSort) {

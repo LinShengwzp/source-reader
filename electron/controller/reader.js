@@ -230,15 +230,22 @@ class ReaderController extends Controller {
             return this.error("null data")
         }
 
-        const {type, search, platform} = args
+        const {type, search, platform, page} = args
         if (!type || !search || !platform) {
             return this.error("error search params")
+        }
+        const sourcePage = {
+            ...{
+                index: 1, //从 第 1 页 开始
+                size: 10,
+            }, ...page
         }
 
         const reader = service.reader
 
         return new Promise(async (resolve, reject) => {
             let searchResult = []
+            let pageInfo = {...sourcePage}
             switch (platform) {
                 case 'StandarReader': {
                     //
@@ -247,24 +254,57 @@ class ReaderController extends Controller {
                         platform: 'StandarReader',
                         sourceType: type,
                         enable: 1,
+                        page: sourcePage
+                    })
+                    // 获取count
+                    const count = await reader.queryData('bookSource', {
+                        id: {
+                            query: true,
+                        },
+                        platform: {
+                            query: false,
+                            data: 'StandarReader',
+                        },
+                        sourceType: {
+                            query: false,
+                            data: type
+                        },
+                        enable: {
+                            query: false,
+                            data: 1
+                        },
                         page: {
-                            index: 2, //从 第 1 页 开始
-                            size: 1,
+                            close: true
                         }
                     })
+                    pageInfo.count = count.length
                     if (sourceList && sourceList.length > 0) {
                         // 处理源
                         for (const sourceIndex in sourceList) {
                             const source = sourceList[sourceIndex]
                             if (source.hasOwnProperty('sourceJson')) {
                                 const sourceJson = JSON.parse(source['sourceJson'])
-                                const res = await this.xbs.searchBook(sourceJson, search, type || "text")
-                                if (res && res.result) {
-                                    searchResult.push({
-                                        sourceId: source.id,
-                                        sourceName: source.sourceName,
-                                        result: res.result.list,
-                                    })
+                                console.log(`source node [${source.sourceName}] search for keyword [${search}] `)
+                                try {
+                                    const res = await this.xbs.searchBook(sourceJson, search, type || "text")
+                                    if (res && res.result) {
+                                        if (res.result.list) {
+                                            console.log(`source node [${source.sourceName}] search for keyword [${search}] success: count [${res.result.list.length}] `)
+                                            searchResult.push({
+                                                sourceId: source.id,
+                                                sourceName: source.sourceName,
+                                                result: res.result.list,
+                                            })
+                                        } else {
+                                            searchResult.push({
+                                                sourceId: source.id,
+                                                sourceName: source.sourceName,
+                                                result: [],
+                                            })
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error(`source node [${source.sourceName}] search for keyword [${search}] failure: [${e}] `)
                                 }
                             }
                         }
@@ -272,7 +312,10 @@ class ReaderController extends Controller {
                     break
                 }
             }
-            resolve(searchResult)
+            resolve({
+                page: pageInfo,
+                result: searchResult
+            })
         })
 
     }

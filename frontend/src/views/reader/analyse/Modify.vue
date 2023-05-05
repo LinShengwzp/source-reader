@@ -962,6 +962,7 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
             let compressJsonStr = compressJson(sourceJson);
 
             // 存储
+            // TODO 禁用源会产生两个问题，1 没有正确显示启用/禁用状态；2 可能导致 type 为空
             const submitData = {
                 id: that.queryInfo.id,
                 platform: 'StandarReader',
