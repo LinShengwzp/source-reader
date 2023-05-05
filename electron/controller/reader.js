@@ -248,7 +248,6 @@ class ReaderController extends Controller {
             let pageInfo = {...sourcePage}
             switch (platform) {
                 case 'StandarReader': {
-                    //
                     // 获取所有的符合条件的源
                     const sourceList = await reader.queryData('bookSource', {
                         platform: 'StandarReader',

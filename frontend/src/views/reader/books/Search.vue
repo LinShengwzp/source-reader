@@ -48,7 +48,7 @@
                                 <div>{{ node.result.length }}本</div>
                             </a-col>
                             <a-col :span="20" class="book-list">
-                                <div class="book-container" v-for="book in node.result">
+                                <div class="book-container" @click="handleBookInfo" v-for="book in node.result">
                                     <a-popover :title="book.bookName" style="width: 4rem">
                                         <template slot="content">
                                             <p>{{ book.author }}</p>
@@ -73,7 +73,7 @@
                     :default-current="searchData.page.index"
                     :total="searchData.page.count"
                     @change="handlePageChange"
-                    @showSizeChange="onShowSizeChange"
+                    @showSizeChange="handleSizeChange"
             />
         </a-spin>
 
@@ -100,7 +100,7 @@ export default {
                 searchList: [],
                 page: {
                     index: 1, //从 第 1 页 开始
-                    size: 5,
+                    size: 10,
                     count: 0
                 }
             },
@@ -112,7 +112,7 @@ export default {
     methods: {
         init(type, search, platform) {
             const that = this
-            that.searchData.type = type || 'text'
+            that.searchData.type = type || 'video'
             that.searchData.search = search || '都市'
             that.searchData.platform = platform || 'StandarReader'
         },
@@ -139,7 +139,7 @@ export default {
                 that.$message.error(searchRes.message)
             }
         },
-        onShowSizeChange(current, pageSize) {
+        handleSizeChange(current, pageSize) {
             console.log(current, pageIndex);
             this.searchData.page.index = current
             this.searchData.page.size = pageSize
@@ -148,7 +148,9 @@ export default {
         handlePageChange(page, pageIndex) {
             this.searchData.page.index = page
             this.handleSearchBook()
-        }
+        },
+        handleBookInfo() {}
+
     }
 }
 </script>

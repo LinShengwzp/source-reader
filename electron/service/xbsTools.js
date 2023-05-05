@@ -271,10 +271,10 @@ const requestTools = {
         return new Promise((resolve, reject) => {
             let timer = null
             try {
-                timer = setTimeout(()=>{
+                timer = setTimeout(() => {
                     request.abort();
                     reject(new Error(`http connect [${url}] time out`))
-                },10000);
+                }, 10000);
                 const request = net.request({
                     headers: headers,
                     method: method,
@@ -776,7 +776,9 @@ class SourceTools {
         // 判断是否存在 js 手动解析
         if (this.config["JSParser"]) {
             // 使用js处理内容
-            const wrappedJsPart = `(${this.config["JSParser"]})`;
+            const wrappedJsPart = `(
+                ${this.config["JSParser"]}
+            )`;
             this.result = (new Function(`return ${wrappedJsPart}`))()(this.config, this.params, resInfo)
             return this.result;
         }
@@ -787,7 +789,8 @@ class SourceTools {
             // 解析 list
             if (config['list']) {
                 const list = this.pathMatch(resInfo, config['list'], jsonPath)
-                if (list && list.length > 0) {
+                if (typeof list === 'object' && list && list.length > 0) {
+                    console.log(`node has search [${list.length}] records`)
                     let pageList = list.map(item => this.buildPathContent(item, ['bookName', 'author', 'cover', 'desc', 'status', 'wordCount', 'lastChapterTitle', 'detailUrl'], jsonPath));
                     this.result = {
                         maxPage: 1,
@@ -886,15 +889,44 @@ class SourceTools {
         }
         const {config} = this
         const res = {}
+        let urlTags = ['cover']
         tagNames.forEach(tag => {
             if (config.hasOwnProperty(tag)) {
                 // 标签解析命令
-                const tagCommand = config[tag]
-                res[tag] = this.pathMatch(content, tagCommand, jsonPath)
+                try {
+                    const tagCommand = config[tag]
+                    res[tag] = this.pathMatch(content, tagCommand, jsonPath)
+                    if (urlTags.indexOf(tag) >= 0) {
+                        res[tag] = this.addDomain(res[tag])
+                    }
+                } catch (e) {
+                    console.error(`parse path tag [${tag}] for content [${content}] failure!`)
+                }
             }
         })
 
         return res
+    }
+
+    /**
+     * 为url加上域名
+     * @param url
+     * @returns {string}
+     */
+    addDomain(url) {
+        if (!url.startsWith("http")) {
+            const {host} = this.config
+            if (host.endsWith("/")) {
+                // 去掉最后的/
+                host.slice(0, host.length - 1)
+            }
+            if (url.startsWith("//")) {
+                url = "https:" + url
+            } else {
+                url = `${host}${url.startsWith("/") ? "" : "/"}${url}`
+            }
+        }
+        return url
     }
 
     /**
@@ -929,70 +961,75 @@ class SourceTools {
                 case "string": {
                     // xpath
                     let pathTag = pipe.callback(this.config, this.params, resultTemp)
-                    // TODO 处理 @data-original
                     let needOriginal = false
-                    if (pathTag.indexOf("@data-original") >= 0) {
-                        needOriginal = true
-                        pathTag = pathTag.replaceAll("@data-original", "@src")
-
-                        if (pathTag.endsWith("/")) {
-                            pathTag = pathTag.slice(0, pathTag.length - 1)
-                        }
-                    }
-
-                    const addDomain = (url) => {
-                        if (!url.startsWith("http")) {
-                            const {host} = this.config
-                            if (host.endsWith("/")) {
-                                // 去掉最后的/
-                                host.slice(0, host.length - 1)
-                            }
-                            url = `${host}${url.startsWith("/") ? "" : "/"}${url}`
-                        }
-                        return url
-                    }
 
                     // 解析path
+                    let query = null
                     try {
                         if (jsonPath) {
                             if (typeof content === 'string') {
                                 content = JSON.parse(content)
                             }
-                            resultTemp = jp.query(content, pathTag)
+                            try {
+                                query = jp.query(content, pathTag);
+                            } catch (e) {
+                                // 尝试将 / 替换成 .
+                                let replaceTag = pathTag.replaceAll(/\//g, ".")
+                                    .replaceAll("|", "*");
+                                query = jp.query(content, replaceTag);
+                            }
                         } else {
-                            resultTemp = xPathParser.queryWithXPath(pathTag)
+                            query = xPathParser.queryWithXPath(pathTag)
+
+                            if (!query) {
+                                // TODO 处理 @data-original
+                                // 由于 data-original 也可以是标签属性，所以优先作为标签属性查询
+                                // 如果获取失败再尝试替换成 src
+                                if (pathTag.indexOf("@data-original") >= 0) {
+                                    needOriginal = true
+                                    pathTag = pathTag.replaceAll("@data-original", "@src")
+
+                                    if (pathTag.endsWith("/")) {
+                                        pathTag = pathTag.slice(0, pathTag.length - 1)
+                                    }
+                                    query = xPathParser.queryWithXPath(pathTag)
+                                }
+                            }
+
                         }
                     } catch (e) {
                         console.error(`path [${pathTag}] parse for content [${content}] failure`)
                     }
-                    if (!resultTemp) {
+                    if (!query) {
                         continue
                     }
-                    if (resultTemp && resultTemp.length > 1) {
+                    if (query && query.length > 1) {
                         if (!jsonPath) {
                             // xpath 需要处理成 string方便下一层搜索
-                            resultTemp = resultTemp.map(i => i.toString())
+                            query = query.map(i => i.toString())
                         }
                     } else {
-                        if (resultTemp.length === 0) {
+                        if (query.length === 0) {
                             continue
                         }
-                        const firstNode = resultTemp[0]
+                        const firstNode = query[0]
                         if (!firstNode) {
                             continue
                         }
 
                         // 直接取值
                         if (jsonPath) {
-                            resultTemp = firstNode
+                            query = firstNode
                         } else {
-                            resultTemp = new XPathParser(firstNode).content()
+                            query = new XPathParser(firstNode).content()
                         }
 
                         if (needOriginal) {
-                            resultTemp = addDomain(resultTemp)
+                            query = this.addDomain(query)
                         }
                     }
+                    // 保证新的空数据不会覆盖原有数据
+                    resultTemp = query
                     break
                 }
             }
@@ -1106,10 +1143,13 @@ class SourceTools {
                                 callback: (config, params, result) => {
                                     // 执行js，这里需要用到局部作用域，但 new Function 默认使用全局作用域
                                     try {
-                                        const wrappedJsPart = `(function(config, params, result) {${part.content}})`;
+                                        // 换行避免有坑
+                                        const wrappedJsPart = `(function(config, params, result) {
+                                            ${part.content}
+                                        })`;
                                         return (new Function(`return ${wrappedJsPart}`))()(config, params, result)
                                     } catch (e) {
-                                        console.error(`execute function string error: [${part.content}]`)
+                                        console.error(`execute function string error: [${part.content}]`, e)
                                         return result
                                     }
                                 }
@@ -1118,7 +1158,7 @@ class SourceTools {
                         }
                         case "replace": {
                             // 内置语法，@replace:xxx，将结果中的 xxx 替换为空
-                            const replaceStr = part.content.replace('@replace:', "")
+                            const replaceStr = part.content.replace('@replace:', "").trim()
                             res.push({
                                 type: 'javascript', // javascript/string/
                                 callback: (config, params, result) => {
