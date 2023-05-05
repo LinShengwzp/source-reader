@@ -68,6 +68,7 @@
 
             <a-pagination
                     show-size-changer
+                    show-quick-jumper
                     :default-page-size="searchData.page.size"
                     :default-current="searchData.page.index"
                     :total="searchData.page.count"
@@ -98,8 +99,8 @@ export default {
                 search: '',
                 searchList: [],
                 page: {
-                    index: 19, //从 第 1 页 开始
-                    size: 1,
+                    index: 1, //从 第 1 页 开始
+                    size: 5,
                     count: 0
                 }
             },

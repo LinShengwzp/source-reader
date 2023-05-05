@@ -291,12 +291,14 @@ class ReaderController extends Controller {
                                         if (res.result.list) {
                                             console.log(`source node [${source.sourceName}] search for keyword [${search}] success: count [${res.result.list.length}] `)
                                             searchResult.push({
+                                                code: 200,
                                                 sourceId: source.id,
                                                 sourceName: source.sourceName,
                                                 result: res.result.list,
                                             })
                                         } else {
                                             searchResult.push({
+                                                code: 200,
                                                 sourceId: source.id,
                                                 sourceName: source.sourceName,
                                                 result: [],
@@ -305,6 +307,13 @@ class ReaderController extends Controller {
                                     }
                                 } catch (e) {
                                     console.error(`source node [${source.sourceName}] search for keyword [${search}] failure: [${e}] `)
+                                    searchResult.push({
+                                        code: 500,
+                                        error: e,
+                                        sourceId: source.id,
+                                        sourceName: source.sourceName,
+                                        result: [],
+                                    })
                                 }
                             }
                         }

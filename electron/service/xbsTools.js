@@ -268,23 +268,40 @@ const requestTools = {
                 }
             }
         }
-        const request = net.request({
-            headers: headers,
-            method: method,
-            url: url
-        })
         return new Promise((resolve, reject) => {
-            // 2. 通过 request.write() 方法，发送的 post 请求数据需要先进行序列化，变成纯文本的形式
+            let timer = null
+            try {
+                timer = setTimeout(()=>{
+                    request.abort();
+                    reject(new Error(`http connect [${url}] time out`))
+                },10000);
+                const request = net.request({
+                    headers: headers,
+                    method: method,
+                    url: url,
+                    timeout: 2000
+                })
 
-            // 3. 处理返回结果
-            request.on('response', response => resolve(response))
-            request.on('error', (error) => {
-                reject(error);
-            });
-            request.on('redirect', (statusCode, method, redirectUrl, responseHeaders) => {
-                console.log("http request has been redirected!")
-            });
-            request.end();
+                request.on('response', response => {
+                    clearTimeout(timer)
+                    resolve(response)
+                })
+                request.on('error', (error) => {
+                    clearTimeout(timer)
+                    reject(error);
+                });
+                request.on('redirect', (statusCode, method, redirectUrl, responseHeaders) => {
+                    console.log("http request has been redirected!")
+                });
+                request.on('timeout', () => {
+                    clearTimeout(timer)
+                    request.abort();
+                });
+
+                request.end();
+            } catch (e) {
+                reject(e)
+            }
         })
     },
     get(url, params, headers, encode) {
@@ -795,37 +812,42 @@ class SourceTools {
 
         // 禁用cookie
         if (reqInfo.forbidCookie) {
-            reqInfo.httpHeaders['Cookie'] = 'none'
+            if (reqInfo.httpHeaders) {
+                reqInfo.httpHeaders['Cookie'] = 'none'
+            }
         }
 
         const encode = this.getEncoding('requestParamsEncode')
         return new Promise(async (resolve, reject) => {
-            let response = await requestTools.request(reqInfo.url, reqInfo.httpParams, reqInfo.httpHeaders, reqInfo.POST ? "POST" : "GET", encode)
+            try {
+                let response = await requestTools.request(reqInfo.url, reqInfo.httpParams, reqInfo.httpHeaders, reqInfo.POST ? "POST" : "GET", encode)
 
-            if (response) {
-                let data = '';
-                this.params.responseHeaders = response.headers
-                this.params.responseUrl = this.reqInfo.url
-                if (response.url) {
-                    this.params.responseUrl = response.url
-                }
-                if (response.responseURL) {
-                    this.params.responseUrl = response.responseURL
-                }
+                if (response) {
+                    let data = '';
+                    this.params.responseHeaders = response.headers
+                    this.params.responseUrl = this.reqInfo.url
+                    if (response.url) {
+                        this.params.responseUrl = response.url
+                    }
+                    if (response.responseURL) {
+                        this.params.responseUrl = response.responseURL
+                    }
 
-                response.on('data', (chunk) => {
-                    // res 是 Buffer 数据
-                    const req = new Uint8Array(chunk);
-                    const decoder = new TextDecoder(encode || 'utf-8')
-                    const resData = decoder.decode(req)
-                    data += resData;
-                });
-                response.on('end', () => {
-                    this.resInfo = data
-                    resolve(data)
-                });
+                    response.on('data', (chunk) => {
+                        // res 是 Buffer 数据
+                        const req = new Uint8Array(chunk);
+                        const decoder = new TextDecoder(encode || 'utf-8')
+                        const resData = decoder.decode(req)
+                        data += resData;
+                    });
+                    response.on('end', () => {
+                        this.resInfo = data
+                        resolve(data)
+                    });
+                }
+            } catch (e) {
+                reject(e)
             }
-
         })
     }
 
@@ -962,7 +984,7 @@ class SourceTools {
 
                         // 直接取值
                         if (jsonPath) {
-                            resultTemp = firstNode.toString()
+                            resultTemp = firstNode
                         } else {
                             resultTemp = new XPathParser(firstNode).content()
                         }
