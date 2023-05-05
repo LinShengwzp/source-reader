@@ -170,7 +170,7 @@ export default {
     methods: {
         init(type, search, platform) {
             const that = this
-            that.searchData.type = type || 'video'
+            that.searchData.type = type || 'text'
             that.searchData.search = search || '都市'
             that.searchData.platform = platform || 'StandarReader'
         },

@@ -837,6 +837,7 @@ class SourceTools {
         if (!resInfo) {
             return;
         }
+        this.result = {}
         const encode = this.getEncoding('requestParamsEncode')
 
         let jsonPath = false
