@@ -49,6 +49,7 @@ const ipcApiRoute = {
 
     bookGroupOperation: 'controller.reader.bookGroupOperation',
     searchBook: 'controller.reader.searchBook',
+    bookDetail: 'controller.reader.bookDetail',
 
 }
 

@@ -48,7 +48,8 @@
                                 <div>{{ node.result.length }}本</div>
                             </a-col>
                             <a-col :span="20" class="book-list">
-                                <div class="book-container" @click="handleBookInfo(book)" v-for="book in node.result">
+                                <div class="book-container" @click="handleBookInfo(book, node.sourceId)"
+                                     v-for="book in node.result">
                                     <a-popover :title="book.bookName" style="width: 4rem">
                                         <template slot="content">
                                             <p>{{ book.author }}</p>
@@ -151,7 +152,7 @@ export default {
                 search: '',
                 searchList: [],
                 page: {
-                    index: 4, //从 第 1 页 开始
+                    index: 5, //从 第 1 页 开始
                     size: 1,
                     count: 0
                 }
@@ -209,10 +210,21 @@ export default {
         /**
          * 点击选中书籍
          * @param bookInfo
+         * @param sourceId
          */
-        handleBookInfo(bookInfo) {
-            console.log(bookInfo)
+        async handleBookInfo(bookInfo, sourceId) {
+            console.log(bookInfo, sourceId)
             const that = this
+
+            if (!bookInfo || !bookInfo.detailUrl || !sourceId) {
+                return
+            }
+
+            const detail = await that.$ipc.invoke(ipcApiRoute.bookDetail, {
+                sourceId: sourceId,
+                detailUrl: bookInfo.detailUrl,
+                platform: "StandarReader"
+            })
 
             if (bookInfo && bookInfo.bookName) {
                 that.bookDetail.drawerTitle = bookInfo.bookName

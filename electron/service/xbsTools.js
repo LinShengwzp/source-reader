@@ -449,7 +449,7 @@ class XPathParser {
     }
 
     raw() {
-        return str;
+        return this.str;
     }
 
     // 返回内容
@@ -463,6 +463,9 @@ class XPathParser {
             }
             if (this.element.hasOwnProperty("firstChild")) {
                 return this.element.firstChild.data
+            }
+            if (this.element) {
+                return this.element.toString()
             }
         }
         return null
@@ -599,6 +602,8 @@ class SourceTools {
     reqInfo
     // 存储响应信息
     resInfo
+    // 存储当前解析有哪些path
+    tagPath
 
     constructor(sourceJson) {
         if (typeof sourceJson === 'object') {
@@ -613,6 +618,7 @@ class SourceTools {
         // 解析源
     }
 
+    //<editor-fold desc="public方法">
     /**
      * 书籍搜索
      * @param keyWord
@@ -622,47 +628,134 @@ class SourceTools {
      */
     async searchBook(keyWord, type, offset, pageIndex) {
         const searchBookConfig = this.sourceObject.searchBook
-        if (!keyWord) {
-            console.error(`empty search string for this source: ${sourceObject['sourceName']}`)
-            return null
-        }
-        if (this.sourceObject['sourceType'] !== type) {
-            console.error(`error search type[${type}] for this source: ${sourceObject['sourceName']}`)
-            return null
-        }
-        if (!searchBookConfig) {
-            console.error(`error search config for this source: ${sourceObject['sourceName']}`)
-            return null
-        }
 
-        // 处理config params
-        this.config = searchBookConfig
 
-        this.params = {// 不要覆盖掉原有的方法
-            ...this.params, ...{
-                // 这三个是之前需要处理好的
-                keyWord: keyWord || '', // 需要转Unicode？
-                offset: offset || 0,
-                pageIndex: pageIndex || 1,
+        return new Promise(async (resolve, reject) => {
+
+            if (!keyWord) {
+                console.error(`empty search string for this source: ${sourceObject['sourceName']}`)
+                reject(new Error(`empty search string for this source: ${sourceObject['sourceName']}`))
             }
-        }
+            if (this.sourceObject['sourceType'] !== type) {
+                console.error(`error search type[${type}] for this source: ${sourceObject['sourceName']}`)
+                reject(new Error(`error search type[${type}] for this source: ${sourceObject['sourceName']}`))
+            }
+            if (!searchBookConfig) {
+                console.error(`error search config for this source: ${sourceObject['sourceName']}`)
+                reject(new Error(`error search config for this source: ${sourceObject['sourceName']}`))
+            }
 
-        // 处理请求信息
-        await this.buildRequestUrl()
+            // 处理config params
+            this.config = searchBookConfig
 
-        // 执行请求
-        await this.requestUrl()
+            this.params = {// 不要覆盖掉原有的方法
+                ...this.params, ...{
+                    // 这三个是之前需要处理好的
+                    keyWord: keyWord || '', // 需要转Unicode？
+                    offset: offset || 0,
+                    pageIndex: pageIndex || 1,
+                }
+            }
+            this.tagPath = [{
+                tag: "list",
+                child: [{tag: 'bookName'}, {tag: 'author'},
+                    {tag: 'cover'}, {tag: 'desc'}, {tag: 'status'},
+                    {tag: 'wordCount'}, {tag: 'lastChapterTitle'}, {tag: 'detailUrl'}]
+            }]
 
-        // 填入结果
-        await this.buildResponse()
+            try {
+                // 处理请求信息
+                await this.buildRequestUrl()
 
-        // 处理 requestInfo host httpParams
-        return {
-            config: this.config,
-            params: this.params,
-            result: this.result || []
-        }
+                // 执行请求
+                await this.requestUrl()
+
+                // 填入结果
+                await this.buildResponse()
+
+                // 处理 requestInfo host httpParams
+                resolve({
+                    config: this.config,
+                    params: this.params,
+                    result: this.result || []
+                })
+            } catch (e) {
+                reject(e)
+            }
+        })
     }
+
+    /**
+     * 书籍详情
+     * @param detailUrl
+     * @returns {Promise<unknown>}
+     */
+    async bookDetail(detailUrl) {
+        const searchConfig = this.sourceObject.searchBook
+        const bookDetailConfig = this.sourceObject.bookDetail
+        const chapterListConfig = this.sourceObject.chapterList
+
+        return new Promise(async (resolve, reject) => {
+            if (!detailUrl) {
+                reject(`error book detail url [${detailUrl}]`)
+            }
+
+            // 处理 config，由于 detail 可能不配置，所以需要结合两个配置
+            const detailConfig = {
+                ...bookDetailConfig, ...{
+                    host: searchConfig.host,
+                    httpHeaders: searchConfig.httpHeaders,
+                }
+            }
+
+            // 存储url
+            this.result = detailUrl
+            this.config = detailConfig
+            // 处理config中的 requestInfo 被 search 覆盖的问题
+            detailConfig['requestInfo'] = detailUrl
+
+            try {
+                this.buildRequestUrl()
+
+                // 执行请求
+                await this.requestUrl()
+
+                // 处理详情内容
+                this.tagPath = [{tag: 'cover'}, {tag: 'desc'}, {tag: 'status'},
+                    {tag: 'wordCount'}, {tag: 'lastChapterTitle'}]
+
+                // 填入结果
+                await this.buildResponse()
+
+                const detailResult = {...this.result}
+
+                // 处理章节列表
+                this.tagPath = [{
+                    tag: "list",
+                    child: [{tag: 'title'}, {tag: 'url'}]
+                }, {tag: "nextPageUrl"}, {tag: 'updateTime'}]
+                this.config = chapterListConfig
+                // 填入结果
+                await this.buildChapter()
+                const chapterList = {...this.result}
+
+                resolve({
+                    config: this.config,
+                    params: this.params,
+                    detail: detailResult || {},
+                    chapter: chapterList || []
+                })
+
+            } catch (e) {
+                reject(e)
+            }
+
+        })
+    }
+
+    //</editor-fold>
+
+    //<editor-fold desc="对源的处理">
 
     /**
      * 处理请求信息，处理结果填入 params.requestUrls(数组？)
@@ -754,6 +847,38 @@ class SourceTools {
             }
             case 'html':
             case 'xml': {
+                // 使用 path 解析器
+                if (typeof resInfo === 'string') {
+                    // 当你归来依旧是string
+                    for (const index in this.tagPath) {
+                        const tag = this.tagPath[index]
+                        const tagPath = tag['tag'];
+                        if (!tagPath || !config[tagPath]) {
+                            continue
+                        }
+                        const matches = this.pathMatch(resInfo, config[tagPath], jsonPath)
+                        if (tag.hasOwnProperty("child")) {
+                            if (typeof matches === 'object' && matches && matches.length > 0) {
+                                console.log(`node has search [${matches.length}] records`)
+                                // ['bookName', 'author', 'cover', 'desc', 'status', 'wordCount', 'lastChapterTitle', 'detailUrl']
+                                let tagNames = []
+                                for (const key in tag.child) {
+                                    // 约定就这么写
+                                    tagNames.push(tag.child[key]['tag'])
+                                }
+                                let pageList = matches.map(item => this.buildPathContent(item, tagNames, jsonPath));
+                                this.result = {
+                                    maxPage: 1,
+                                    success: 1,
+                                    list: pageList
+                                }
+                            }
+                        } else {
+                            this.result[tagPath] = matches
+                        }
+                    }
+                }
+
                 break
             }
             case 'json': {
@@ -782,26 +907,13 @@ class SourceTools {
             this.result = (new Function(`return ${wrappedJsPart}`))()(this.config, this.params, resInfo)
             return this.result;
         }
+    }
 
-        // 使用 path 解析器
-        if (typeof resInfo === 'string') {
-            // 当你归来依旧是string
-            // 解析 list
-            if (config['list']) {
-                const list = this.pathMatch(resInfo, config['list'], jsonPath)
-                if (typeof list === 'object' && list && list.length > 0) {
-                    console.log(`node has search [${list.length}] records`)
-                    let pageList = list.map(item => this.buildPathContent(item, ['bookName', 'author', 'cover', 'desc', 'status', 'wordCount', 'lastChapterTitle', 'detailUrl'], jsonPath));
-                    this.result = {
-                        maxPage: 1,
-                        success: 1,
-                        list: pageList
-                    }
+    /**
+     * 处理章节
+     */
+    buildChapter() {
 
-                    return this.result
-                }
-            }
-        }
     }
 
     /**
@@ -1006,7 +1118,7 @@ class SourceTools {
                     if (query && query.length > 1) {
                         if (!jsonPath) {
                             // xpath 需要处理成 string方便下一层搜索
-                            query = query.map(i => i.toString())
+                            query = query.map(i => new XPathParser(i).raw())
                         }
                     } else {
                         if (query.length === 0) {
@@ -1208,6 +1320,8 @@ class SourceTools {
         return res
     }
 
+    //</editor-fold>
+
 }
 
 /**
@@ -1339,6 +1453,30 @@ class XbsToolService extends Service {
                 reject(e)
             }
         })
+    }
+
+    /**
+     * 书籍详情
+     * @param sourceJson 源
+     * @param detailUrl 详情地址
+     * @returns {Promise<unknown>}
+     */
+    async bookDetail(sourceJson, detailUrl) {
+        const sourceTools = new SourceTools(sourceJson);
+        return new Promise(async (resolve, reject) => {
+            try {
+                const detail = await sourceTools.bookDetail(detailUrl);
+                resolve(detail)
+            } catch (e) {
+                reject(e)
+            }
+
+        })
+    }
+
+
+    async bookChapter(sourceJson) {
+
     }
 }
 

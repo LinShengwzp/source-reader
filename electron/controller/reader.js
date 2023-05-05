@@ -328,6 +328,88 @@ class ReaderController extends Controller {
 
     }
 
+    /**
+     * 书籍详情，这个得看源是否配置了
+     * @param args
+     * @returns {Promise<unknown>}
+     */
+    async bookDetail(args) {
+        const {service} = this
+
+        if (service.utils.nullObj(args)) {
+            return this.error("null data")
+        }
+
+        const {sourceId, detailUrl, platform} = args
+        if (!sourceId || !detailUrl || !platform) {
+            return this.error("error detail params")
+        }
+
+        const reader = service.reader
+
+        return new Promise(async (resolve, reject) => {
+            switch (platform) {
+                case "StandarReader": {
+                    // 获取配置
+                    const sourceInfo = await reader.queryOne('bookSource', {
+                        id: sourceId,
+                        sourceJson: {
+                            query: true
+                        },
+                        sourceType: {
+                            query: false
+                        },
+                    })
+
+                    if (!sourceInfo || !sourceInfo['sourceJson']) {
+                        reject(`error source ID [${sourceId}]`)
+                    }
+
+                    // 由于传入了 detailUrl，这里可以直接用这个去请求网页
+                    try {
+                        const sourceJson = JSON.parse(sourceInfo['sourceJson'])
+                        const detail = await this.xbs.bookDetail(sourceJson, detailUrl)
+                        const chapter = await this.xbs.bookDetail(sourceJson, detailUrl)
+                        if (detail) {
+                            resolve({
+                                code: 200,
+                                sourceId: sourceId,
+                                type: sourceInfo['sourceType'],
+                                detail: detail.result
+                            })
+                        } else {
+                            resolve({
+                                code: 200,
+                                sourceId: sourceId,
+                                type: sourceInfo['sourceType']
+                            })
+                        }
+                    } catch (e) {
+                        reject({
+                            code: 500,
+                            sourceId: sourceId,
+                            type: sourceInfo['sourceType'],
+                            message: e
+                        })
+                    }
+                    break
+                }
+            }
+        })
+    }
+
+    async bookChapter(args) {
+        return new Promise((resolve, reject) => {
+
+        })
+    }
+
+    async bookContent(args) {
+        return new Promise((resolve, reject) => {
+
+        })
+    }
+
     //<editor-fold desc="文件操作">
     readFile(args) {
         const {filePath, encoding, flags} = args
