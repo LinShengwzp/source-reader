@@ -48,7 +48,7 @@
                                 <div>{{ node.result.length }}本</div>
                             </a-col>
                             <a-col :span="20" class="book-list">
-                                <div class="book-container" @click="handleBookInfo" v-for="book in node.result">
+                                <div class="book-container" @click="handleBookInfo(book)" v-for="book in node.result">
                                     <a-popover :title="book.bookName" style="width: 4rem">
                                         <template slot="content">
                                             <p>{{ book.author }}</p>
@@ -77,6 +77,58 @@
             />
         </a-spin>
 
+
+        <a-drawer
+                :title="bookDetail.drawerTitle"
+                placement="right"
+                :closable="false"
+                width="60%"
+                @close="bookDetail.showDrawer = false"
+                :visible="bookDetail.showDrawer">
+            <div class="book-detail-container">
+                <a-row class="book-info-container">
+                    <a-col :span="10" class="book-cover">
+                        <div class="cover-box">
+                            <img :src="bookDetail.bookInfo.cover" class="book-cover">
+                        </div>
+                    </a-col>
+                    <a-col :span="14" class="info-box">
+                        <div class="detail-info-item"><h2>{{ bookDetail.bookInfo.bookName }}</h2></div>
+                        <div class="detail-info-item" v-if="bookDetail.bookInfo.author">作者:
+                            {{ bookDetail.bookInfo.author }}
+                        </div>
+                        <div class="detail-info-item" v-if="bookDetail.bookInfo.desc">简介: {{
+                            bookDetail.bookInfo.desc
+                            }}
+                        </div>
+                        <div class="detail-info-item" v-if="bookDetail.bookInfo.status">状态:
+                            {{ bookDetail.bookInfo.status }}
+                        </div>
+                        <div class="detail-info-item" v-if="bookDetail.bookInfo.wordCount">字数:
+                            {{ bookDetail.bookInfo.wordCount }}
+                        </div>
+                        <div class="detail-info-item" v-if="bookDetail.bookInfo.lastChapterTitle">最新:
+                            {{ bookDetail.bookInfo.lastChapterTitle }}
+                        </div>
+                    </a-col>
+                </a-row>
+
+                <a-row class="book-chapter-container">
+                    <h2>目录</h2>
+                </a-row>
+
+                <a-row class="book-chapter-container">
+                    <h2>停止更新</h2>
+                </a-row>
+
+                <a-row class="book-chapter-container">
+                    <div>加入书架</div>
+                    <div>移出书架</div>
+                    <div>开始阅读</div>
+                </a-row>
+            </div>
+        </a-drawer>
+
     </div>
 </template>
 
@@ -99,11 +151,16 @@ export default {
                 search: '',
                 searchList: [],
                 page: {
-                    index: 1, //从 第 1 页 开始
-                    size: 10,
+                    index: 4, //从 第 1 页 开始
+                    size: 1,
                     count: 0
                 }
             },
+            bookDetail: {
+                drawerTitle: "",
+                showDrawer: false,
+                bookInfo: {},
+            }
         }
     },
     mounted() {
@@ -149,7 +206,20 @@ export default {
             this.searchData.page.index = page
             this.handleSearchBook()
         },
-        handleBookInfo() {}
+        /**
+         * 点击选中书籍
+         * @param bookInfo
+         */
+        handleBookInfo(bookInfo) {
+            console.log(bookInfo)
+            const that = this
+
+            if (bookInfo && bookInfo.bookName) {
+                that.bookDetail.drawerTitle = bookInfo.bookName
+                that.bookDetail.bookInfo = bookInfo
+                that.bookDetail.showDrawer = true
+            }
+        }
 
     }
 }
@@ -208,12 +278,30 @@ export default {
         }
 
       }
-
-
     }
   }
 
+}
 
+.book-detail-container {
+  .book-info-container {
+    .book-cover {
+      .cover-box {
+        text-align: center;
+
+        .book-cover {
+          width: 12rem;
+          height: 16rem;
+        }
+      }
+    }
+
+    .info-box {
+      .detail-info-item {
+        margin: 0.2rem;
+      }
+    }
+  }
 }
 
 </style>
