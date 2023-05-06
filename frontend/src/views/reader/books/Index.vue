@@ -22,11 +22,11 @@
                     </a-row>
                 </a-col>
 
-                <a-col v-if="searchConfig.searchBook" :span="18" class="modify-container" style="overflow: scroll">
+                <a-col v-show="searchConfig.searchBook" :span="18" class="modify-container" style="overflow: scroll">
                     <search ref="bookSearch" :group-id="menuModel"/>
                 </a-col>
 
-                <a-col v-else :span="18" class="modify-container">
+                <a-col v-show="!searchConfig.searchBook" :span="18" class="modify-container">
                     <shelf ref="bookshelf"/>
                 </a-col>
             </a-row>
