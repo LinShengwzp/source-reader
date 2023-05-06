@@ -52,8 +52,8 @@
                                      v-for="book in node.result">
                                     <a-popover :title="book.bookName" style="width: 4rem">
                                         <template slot="content">
-                                            <p>{{ book.author }}</p>
-                                            <p>{{ book.desc }}</p>
+                                            <p v-html="book.author"></p>
+                                            <p v-html="book.desc"></p>
                                         </template>
                                         <div class="book-item">
                                             <img class="book-cover" :src="book.cover">
@@ -67,14 +67,14 @@
                 </div>
             </div>
 
-            <a-pagination
-                    show-size-changer
-                    show-quick-jumper
-                    :default-page-size="searchData.page.size"
-                    :default-current="searchData.page.index"
-                    :total="searchData.page.count"
-                    @change="handlePageChange"
-                    @showSizeChange="handleSizeChange"
+            <a-pagination v-show="searchData.searchList && searchData.searchList.length > 0"
+                          show-size-changer
+                          show-quick-jumper
+                          :default-page-size="searchData.page.size"
+                          :default-current="searchData.page.index"
+                          :total="searchData.page.count"
+                          @change="handlePageChange"
+                          @showSizeChange="handleSizeChange"
             />
         </a-spin>
 
@@ -114,18 +114,23 @@
                     </a-col>
                 </a-row>
 
-                <a-row class="book-chapter-container">
-                    <h2>目录</h2>
+                <a-row v-if="bookDetail.chapterList" class="book-chapter-container">
+                    <h2>目录 ({{ bookDetail.chapterList.length }}章)</h2>
+                    <h3>最新章</h3>
+                    <div class="chapter-item" v-for="(chapter, index) in bookDetail.chapterList.slice(0, 5)"
+                         @click="handleReadBook(bookDetail.chapterList.length - 1 - index)">
+                        {{ bookDetail.chapterList[bookDetail.chapterList.length - 1 - index].title }}
+                    </div>
                 </a-row>
 
-                <a-row class="book-chapter-container">
-                    <h2>停止更新</h2>
-                </a-row>
-
-                <a-row class="book-chapter-container">
-                    <div>加入书架</div>
-                    <div>移出书架</div>
-                    <div>开始阅读</div>
+                <a-row class="book-operate-container">
+                    <div v-if="bookDetail.bookInfo.id" class="book-operate-btn btn operate-shelf operate-out-bookshelf"
+                         @click="handleOutOfBookshelf">移出书架
+                    </div>
+                    <div v-else class="book-operate-btn btn operate-shelf operate-into-bookshelf"
+                         @click="handleIntoBookshelf">加入书架
+                    </div>
+                    <div class="book-operate-btn btn operate-read" @click="handleReadBook">开始阅读</div>
                 </a-row>
             </div>
         </a-drawer>
@@ -141,6 +146,9 @@ import {ipcApiRoute} from "@/api/main";
 export default {
     name: 'search',
     components: {EditorArea},
+    props: {
+        groupId: Number,
+    },
     data() {
         return {
             SourceType,
@@ -152,15 +160,17 @@ export default {
                 search: '',
                 searchList: [],
                 page: {
-                    index: 5, //从 第 1 页 开始
-                    size: 1,
+                    index: 2, //从 第 1 页 开始
+                    size: 5,
                     count: 0
                 }
             },
             bookDetail: {
                 drawerTitle: "",
                 showDrawer: false,
+                sourceId: "",
                 bookInfo: {},
+                chapterList: []
             }
         }
     },
@@ -198,7 +208,6 @@ export default {
             }
         },
         handleSizeChange(current, pageSize) {
-            console.log(current, pageIndex);
             this.searchData.page.index = current
             this.searchData.page.size = pageSize
             this.handleSearchBook()
@@ -213,26 +222,87 @@ export default {
          * @param sourceId
          */
         async handleBookInfo(bookInfo, sourceId) {
-            console.log(bookInfo, sourceId)
             const that = this
-
             if (!bookInfo || !bookInfo.detailUrl || !sourceId) {
                 return
             }
-
+            that.bookDetail = {
+                drawerTitle: "",
+                showDrawer: true,
+                sourceId: sourceId,
+                bookInfo: {},
+                chapterList: []
+            }
             const detail = await that.$ipc.invoke(ipcApiRoute.bookDetail, {
                 sourceId: sourceId,
                 detailUrl: bookInfo.detailUrl,
-                platform: "StandarReader"
+                bookName: bookInfo.bookName,
             })
-
-            if (bookInfo && bookInfo.bookName) {
-                that.bookDetail.drawerTitle = bookInfo.bookName
-                that.bookDetail.bookInfo = bookInfo
-                that.bookDetail.showDrawer = true
+            console.log("book detail", detail)
+            if (detail && detail.code === 200) {
+                bookInfo = {...bookInfo, ...detail.detail}
+                that.$nextTick(() => {
+                    that.bookDetail.drawerTitle = bookInfo.bookName
+                    that.bookDetail.bookInfo = bookInfo
+                    that.bookDetail.chapterList = detail.chapter.list
+                })
             }
+        },
+        async handleOutOfBookshelf() {
+            const that = this
+            const {bookInfo, chapterList} = that.bookDetail
+            if (bookInfo.id) {
+                const res = await that.$ipc.invoke(ipcApiRoute.bookRemove, {bookId: bookInfo.id})
+                if (res && res.code === 200) {
+                    console.log("移出成功")
+                    that.$nextTick(() => {
+                        bookInfo.id = ""
+                        console.log("book info", that.bookDetail.bookInfo)
+                    })
+                }
+            }
+        },
+        /**
+         * 加入书架
+         * 搜索页面没有移出书架的操作
+         * @returns {Promise<void>}
+         */
+        async handleIntoBookshelf() {
+            const that = this
+            const {bookInfo, chapterList} = that.bookDetail
+            if (!bookInfo || !bookInfo.bookName || !chapterList || !(chapterList.length > 0)) {
+                that.$message.error("书籍内容或章节缺失")
+                return;
+            }
+            const res = await that.$ipc.invoke(ipcApiRoute.bookInfoSave, {
+                groupId: that.groupId,
+                sourceId: that.bookDetail.sourceId,
+                detailUrl: bookInfo.detailUrl,
+                bookInfo: bookInfo,
+            })
+            console.log("save book into booshelf", res)
+            if (res && res.code === 200) {
+                that.$nextTick(() => {
+                    that.bookDetail.bookInfo = res.result
+                    console.log("book info", that.bookDetail.bookInfo)
+                })
+            } else {
+                that.$message.error(res.message)
+            }
+            return res;
+        },
+        /**
+         * 开始阅读
+         * @param index 章节下标;无参数则直接从头开始
+         * @returns {Promise<void>}
+         */
+        async handleReadBook(index) {
+            // 加入书架
+            const that = this
+            const res = await this.handleIntoBookshelf()
+            // 唤起阅读界面
+            console.log("read book")
         }
-
     }
 }
 </script>
@@ -296,6 +366,8 @@ export default {
 }
 
 .book-detail-container {
+  position: relative;
+
   .book-info-container {
     .book-cover {
       .cover-box {
@@ -312,6 +384,44 @@ export default {
       .detail-info-item {
         margin: 0.2rem;
       }
+    }
+  }
+
+  .book-chapter-container {
+    margin: 1rem;
+    user-select: none;
+
+    .chapter-item {
+      cursor: pointer;
+      margin: 0.1rem;
+    }
+
+    .chapter-item:hover {
+      color: #4fdb89;
+    }
+  }
+
+  .book-operate-container {
+    position: absolute;
+    margin: 0 1rem;
+    border: 0.1rem;
+    width: 96%;
+    display: flex;
+    cursor: pointer;
+    user-select: none;
+
+    .book-operate-btn {
+      flex: 1;
+      text-align: center;
+      margin: 0.1rem;
+      line-height: 1.5rem;
+      border: 0.1rem solid #d7d7d7;
+      border-radius: 0.1rem;
+    }
+
+    .book-operate-btn:hover {
+      background-color: #4fdb89;
+      color: white;
     }
   }
 }

@@ -462,7 +462,7 @@ class XPathParser {
                 return this.element.value
             }
             if (this.element.hasOwnProperty("firstChild")) {
-                return this.element.firstChild.data
+                return new XPathParser(this.element.firstChild).content()
             }
             if (this.element) {
                 return this.element.toString()
@@ -490,6 +490,10 @@ class XPathParser {
     // 返回查询结果，以数组保存
     queryWithXPath(strXPath) {
         try {
+            if (strXPath === "|") {
+                strXPath = "."
+            }
+
             if (this.domBody) {
                 return xpath.select(strXPath, this.domBody)
             }
@@ -659,7 +663,7 @@ class SourceTools {
             this.tagPath = [{
                 tag: "list",
                 child: [{tag: 'bookName'}, {tag: 'author'},
-                    {tag: 'cover'}, {tag: 'desc'}, {tag: 'status'},
+                    {tag: 'cover', type: 'url'}, {tag: 'desc'}, {tag: 'status'},
                     {tag: 'wordCount'}, {tag: 'lastChapterTitle'}, {tag: 'detailUrl'}]
             }]
 
@@ -721,22 +725,24 @@ class SourceTools {
                 await this.requestUrl()
 
                 // 处理详情内容
-                this.tagPath = [{tag: 'cover'}, {tag: 'desc'}, {tag: 'status'},
+                this.tagPath = [{tag: 'cover', type: 'url'}, {tag: 'desc'}, {tag: 'status'},
                     {tag: 'wordCount'}, {tag: 'lastChapterTitle'}]
 
                 // 填入结果
                 await this.buildResponse()
-
-                const detailResult = {...this.result}
+                let detailResult = {}
+                if (detailConfig.hasOwnProperty("validConfig")) {
+                    detailResult = this.result
+                }
 
                 // 处理章节列表
                 this.tagPath = [{
                     tag: "list",
-                    child: [{tag: 'title'}, {tag: 'url'}]
+                    child: [{tag: 'title'}, {tag: 'url', type: 'url'}]
                 }, {tag: "nextPageUrl"}, {tag: 'updateTime'}]
                 this.config = chapterListConfig
                 // 填入结果
-                await this.buildChapter()
+                await this.buildResponse()
                 const chapterList = {...this.result}
 
                 resolve({
@@ -857,17 +863,16 @@ class SourceTools {
                         if (!tagPath || !config[tagPath]) {
                             continue
                         }
-                        const matches = this.pathMatch(resInfo, config[tagPath], jsonPath)
+                        const matchesRes = this.buildPathContent(resInfo, [tag], jsonPath)
+                        const matches = matchesRes[tagPath]
+                        if (!matches) {
+                            continue
+                        }
                         if (tag.hasOwnProperty("child")) {
                             if (typeof matches === 'object' && matches && matches.length > 0) {
                                 console.log(`node has search [${matches.length}] records`)
                                 // ['bookName', 'author', 'cover', 'desc', 'status', 'wordCount', 'lastChapterTitle', 'detailUrl']
-                                let tagNames = []
-                                for (const key in tag.child) {
-                                    // 约定就这么写
-                                    tagNames.push(tag.child[key]['tag'])
-                                }
-                                let pageList = matches.map(item => this.buildPathContent(item, tagNames, jsonPath));
+                                let pageList = matches.map(item => this.buildPathContent(item, tag.child, jsonPath));
                                 this.result = {
                                     maxPage: 1,
                                     success: 1,
@@ -908,13 +913,6 @@ class SourceTools {
             this.result = (new Function(`return ${wrappedJsPart}`))()(this.config, this.params, resInfo)
             return this.result;
         }
-    }
-
-    /**
-     * 处理章节
-     */
-    buildChapter() {
-
     }
 
     /**
@@ -1002,18 +1000,18 @@ class SourceTools {
         }
         const {config} = this
         const res = {}
-        let urlTags = ['cover']
         tagNames.forEach(tag => {
-            if (config.hasOwnProperty(tag)) {
+            const tagName = tag['tag']
+            if (config.hasOwnProperty(tagName)) {
                 // 标签解析命令
                 try {
-                    const tagCommand = config[tag]
-                    res[tag] = this.pathMatch(content, tagCommand, jsonPath)
-                    if (urlTags.indexOf(tag) >= 0) {
-                        res[tag] = this.addDomain(res[tag])
+                    const tagCommand = config[tagName]
+                    res[tagName] = this.pathMatch(content, tagCommand, jsonPath)
+                    if (tag['type'] && tag['type'] === 'url') {
+                        res[tagName] = this.addDomain(res[tagName])
                     }
                 } catch (e) {
-                    console.error(`parse path tag [${tag}] for content [${content}] failure!`)
+                    console.error(`parse path tag [${tagName}] for content [${content}] failure!`)
                 }
             }
         })

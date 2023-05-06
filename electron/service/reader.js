@@ -167,6 +167,10 @@ class ReaderSourceStorageService extends Service {
                 notNull: true,
                 comment: '书源来源，本地/网络',
             },
+            detailUrl: {
+                type: 'TEXT',
+                comment: '书源网络地址',
+            },
             sourceId: {
                 type: 'INTEGER',
                 comment: '所属书源',
@@ -184,7 +188,7 @@ class ReaderSourceStorageService extends Service {
             cover: {
                 type: 'TEXT',
                 notNull: true,
-                comment: '分组名称',
+                comment: '书籍封面',
                 union: true, // 唯一，查询重复用
             },
             author: {
@@ -247,6 +251,11 @@ class ReaderSourceStorageService extends Service {
                 notNull: true,
                 comment: '所属书籍',
             },
+            sourceId: {
+                type: 'INTEGER',
+                notNull: true,
+                comment: '所属书籍',
+            },
             platform: {
                 type: 'TEXT',
                 notNull: true,
@@ -262,10 +271,15 @@ class ReaderSourceStorageService extends Service {
                 default: 0,
                 comment: '是否缓存'
             },
-            chapterName: {
+            title: {
                 type: 'TEXT',
                 notNull: true,
                 comment: '章节名称',
+            },
+            url: {
+                type: 'TEXT',
+                notNull: true,
+                comment: '章节地址',
             },
             desc: {
                 type: 'TEXT',
@@ -287,7 +301,7 @@ class ReaderSourceStorageService extends Service {
             sort: {
                 type: 'int',
                 default: 0,
-                comment: '排序'
+                comment: '排序,也是下标'
             },
         },
         // 配置

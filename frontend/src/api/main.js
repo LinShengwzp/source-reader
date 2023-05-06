@@ -48,6 +48,9 @@ const ipcApiRoute = {
     bookSourceFileRead: 'controller.reader.bookSourceFileRead',
 
     bookGroupOperation: 'controller.reader.bookGroupOperation',
+    bookInfoOperation: 'controller.reader.bookInfoOperation',
+    bookInfoSave: 'controller.reader.bookInfoSave',
+    bookRemove: 'controller.reader.bookRemove',
     searchBook: 'controller.reader.searchBook',
     bookDetail: 'controller.reader.bookDetail',
 

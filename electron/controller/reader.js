@@ -340,42 +340,75 @@ class ReaderController extends Controller {
             return this.error("null data")
         }
 
-        const {sourceId, detailUrl, platform} = args
-        if (!sourceId || !detailUrl || !platform) {
+        const {sourceId, detailUrl, bookName} = args
+        if (!sourceId || !detailUrl) {
             return this.error("error detail params")
         }
 
         const reader = service.reader
 
         return new Promise(async (resolve, reject) => {
-            switch (platform) {
-                case "StandarReader": {
-                    // 获取配置
-                    const sourceInfo = await reader.queryOne('bookSource', {
-                        id: sourceId,
-                        sourceJson: {
-                            query: true
-                        },
-                        sourceType: {
-                            query: false
-                        },
+
+            // 获取配置
+            const sourceInfo = await reader.queryOne('bookSource', {
+                id: sourceId,
+                sourceJson: {
+                    query: true
+                },
+                platform: {
+                    query: true
+                },
+                sourceType: {
+                    query: true
+                },
+            })
+
+            if (!sourceInfo || !sourceInfo['sourceJson']) {
+                reject(this.error(`error source ID [${sourceId}]`))
+            }
+
+            const exist = await this.dataOperator('bookInfo', "get", {
+                platform: sourceInfo.platform,
+                sourceId: sourceId,
+                detailUrl: detailUrl,
+                bookName: bookName,
+            }, false)
+
+            if (exist && exist.result && exist.result.length === 1) {
+                const book = exist.result[0]
+                const chapter = await this.dataOperator("bookChapter", "get", {
+                    bookId: book.id, sort: {
+                        sort: 'asc'
+                    },
+                    page: {close: true}
+                })
+
+                if (chapter && chapter.result) {
+                    resolve({
+                        code: 200,
+                        sourceId: sourceId,
+                        type: sourceInfo['sourceType'],
+                        detail: book,
+                        chapter: {
+                            list: chapter.result
+                        }
                     })
+                }
+            }
 
-                    if (!sourceInfo || !sourceInfo['sourceJson']) {
-                        reject(`error source ID [${sourceId}]`)
-                    }
-
+            switch (sourceInfo.platform) {
+                case "StandarReader": {
                     // 由于传入了 detailUrl，这里可以直接用这个去请求网页
                     try {
                         const sourceJson = JSON.parse(sourceInfo['sourceJson'])
-                        const detail = await this.xbs.bookDetail(sourceJson, detailUrl)
-                        const chapter = await this.xbs.bookDetail(sourceJson, detailUrl)
-                        if (detail) {
+                        const detailResult = await this.xbs.bookDetail(sourceJson, detailUrl)
+                        if (detailResult) {
                             resolve({
                                 code: 200,
                                 sourceId: sourceId,
                                 type: sourceInfo['sourceType'],
-                                detail: detail.result
+                                detail: detailResult.detail,
+                                chapter: detailResult.chapter
                             })
                         } else {
                             resolve({
@@ -398,15 +431,103 @@ class ReaderController extends Controller {
         })
     }
 
-    async bookChapter(args) {
+    /**
+     * 获取书籍章节内容
+     * @param args
+     * @returns {Promise<unknown>}
+     */
+    async bookContent(args) {
         return new Promise((resolve, reject) => {
 
         })
     }
 
-    async bookContent(args) {
-        return new Promise((resolve, reject) => {
+    /**
+     * 存储书籍
+     * @param args
+     * @returns {Promise<{result: {}, action, message: string}>}
+     */
+    async bookInfoSave(args) {
+        const {groupId, sourceId, bookInfo, detailUrl} = args
+        if (!groupId || !sourceId || !bookInfo || !detailUrl) {
+            return this.error("error save book params")
+        }
+        return new Promise(async (resolve, reject) => {
+            let group = await this.dataOperator("bookGroup", "get", {id: groupId})
+            let source = await this.dataOperator("bookSource", "get", {id: sourceId})
 
+            if (!group) {
+                reject(this.error("error group id"))
+            }
+            if (!source) {
+                reject(this.error("error source id"))
+            }
+            group = group.result[0]
+            source = source.result[0]
+
+            // 重新从网络上获取detail和 chapter
+            const detail = await this.bookDetail({
+                sourceId: sourceId,
+                detailUrl: detailUrl,
+                platform: group.platform || source.platform
+            })
+
+            if (!detail) {
+                reject(this.error("error request book info"))
+            }
+
+            // 最终的书籍详情
+            const bookDetail = {
+                ...bookInfo, ...detail.detail, ...{
+                    platform: group.platform || source.platform,
+                    sourceType: source.sourceType,
+                    groupId: groupId,
+                    originFrom: "web",
+                    detailUrl: detailUrl,
+                    sourceId: sourceId,
+                    sourceSearch: sourceId,
+                    readStatus: 0
+                }
+            }
+
+            // 存储
+            const save = await this.dataOperator('bookInfo', "add", bookDetail, false)
+
+            // 存储章节
+            if (save.message === 'success') {
+                const book = save.result
+                if (detail.chapter && detail.chapter.list) {
+                    // 先清空，保证没有重复
+                    await this.dataOperator("bookChapter", "del", {bookId: book.id})
+                    detail.chapter.list.forEach((chapter, index) => {
+                        // 写入数据库
+                        this.dataOperator("bookChapter", "add", {
+                            bookId: book.id,
+                            sourceId: book.sourceId,
+                            platform: book.platform,
+                            sourceType: book.sourceType,
+                            cached: 0,
+                            title: chapter.title,
+                            url: chapter.url,
+                            desc: "",
+                            wordCount: 0,
+                            currReadContent: 0,
+                            sort: index
+                        }, true)
+                    })
+                }
+            }
+
+            resolve(save)
+        })
+    }
+
+    async bookRemove(args) {
+        const {bookId} = args
+        return new Promise((resolve, reject) => {
+            this.dataOperator("bookChapter", "del", {bookId: bookId})
+            this.dataOperator("bookInfo", "del", {id: bookId})
+            resolve(this.success())
         })
     }
 
@@ -415,11 +536,11 @@ class ReaderController extends Controller {
         const {filePath, encoding, flags} = args
         return new Promise((resolve, reject) => {
             if (!filePath) {
-                reject("None filePath!")
+                reject(this.error("None filePath!"))
             }
 
             if (!fs.existsSync(filePath)) {
-                reject(`file [${filePath}] doesn't exist!`)
+                reject(this.error(`file [${filePath}] doesn't exist!`))
             }
 
             fs.readFile(filePath, {
