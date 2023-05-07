@@ -138,12 +138,13 @@ export default {
             console.log("read book")
             index = index || 0
             const chapter = chapterList[index]
-            const content = await this.$ipc.invoke(ipcApiRoute.bookContent, {
-                bookId: bookInfo.id,
-                index: index,
-                chapterId: chapter.id
+            this.$router.push({
+                name: 'ReaderContentIndex', params: {
+                    bookId: bookInfo.id,
+                    chapterId: chapter.id,
+                    index: index
+                }
             })
-            console.log("book content", content)
         }
     }
 }

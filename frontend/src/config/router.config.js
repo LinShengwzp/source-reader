@@ -144,8 +144,13 @@ export const constantRouterMap = [
             name: 'ReaderBooksIndex',
             component: () => import('@/views/reader/books/Index')
           },
+          {
+            path: '/reader/read/index',
+            name: 'ReaderContentIndex',
+            component: () => import('@/views/reader/read/Index')
+          },
         ]
-      }
+      },
     ]
   },
   {

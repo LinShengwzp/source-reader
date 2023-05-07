@@ -105,8 +105,8 @@ export default {
                 search: '',
                 searchList: [],
                 page: {
-                    index: 16, //从 第 1 页 开始
-                    size: 1,
+                    index: 1, //从 第 1 页 开始
+                    size: 10,
                     count: 0
                 }
             },
@@ -123,7 +123,7 @@ export default {
         this.init()
     },
     methods: {
-        init(type, search, platform) {
+        init(type, search, platform, groupId) {
             const that = this
             that.searchData.type = type || 'text'
             that.searchData.search = search || '都市'
