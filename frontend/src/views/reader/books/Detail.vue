@@ -14,7 +14,7 @@
                     </div>
                 </a-col>
                 <a-col :span="14" class="info-box">
-                    <div class="detail-info-item"><h2>{{ bookDetail.bookInfo.bookName }}</h2></div>
+                    <div class="detail-info-item"><h2 v-html="bookDetail.bookInfo.bookName"></h2></div>
                     <div class="detail-info-item" v-if="bookDetail.bookInfo.author">作者:
                         {{ bookDetail.bookInfo.author }}
                     </div>
@@ -50,7 +50,7 @@
                 <div v-else class="book-operate-btn btn operate-shelf operate-into-bookshelf"
                      @click="handleIntoBookshelf">加入书架
                 </div>
-                <div class="book-operate-btn btn operate-read" @click="handleReadBook">开始阅读</div>
+                <div class="book-operate-btn btn operate-read" @click="handleReadBook(0)">开始阅读</div>
             </a-row>
         </div>
     </a-drawer>
@@ -71,9 +71,13 @@ export default {
             }
         }
     },
+    props: {
+        groupId: Number,
+    },
     methods: {
         init(bookDetail) {
             this.bookDetail = bookDetail
+
         },
         async handleOutOfBookshelf() {
             const that = this
@@ -83,7 +87,9 @@ export default {
                 if (res && res.code === 200) {
                     console.log("移出成功")
                     that.$nextTick(() => {
+                        that.$emit("handleRemoveBook", bookInfo.id)
                         bookInfo.id = ""
+                        that.bookDetail.showDrawer = false
                         console.log("book info", that.bookDetail.bookInfo)
                     })
                 }
@@ -105,7 +111,7 @@ export default {
                 groupId: that.groupId,
                 sourceId: that.bookDetail.sourceId,
                 detailUrl: bookInfo.detailUrl,
-                bookInfo: bookInfo,
+                bookInfo: bookInfo
             })
             console.log("save book into booshelf", res)
             if (res && res.code === 200) {
@@ -126,9 +132,18 @@ export default {
         async handleReadBook(index) {
             // 加入书架
             const that = this
+            const {bookInfo, chapterList} = that.bookDetail
             const res = await this.handleIntoBookshelf()
             // 唤起阅读界面
             console.log("read book")
+            index = index || 0
+            const chapter = chapterList[index]
+            const content = await this.$ipc.invoke(ipcApiRoute.bookContent, {
+                bookId: bookInfo.id,
+                index: index,
+                chapterId: chapter.id
+            })
+            console.log("book content", content)
         }
     }
 }
@@ -137,63 +152,63 @@ export default {
 <style scoped lang="less">
 
 .book-detail-container {
-    position: relative;
+  position: relative;
 
-    .book-info-container {
+  .book-info-container {
+    .book-cover {
+      .cover-box {
+        text-align: center;
+
         .book-cover {
-            .cover-box {
-                text-align: center;
-
-                .book-cover {
-                    width: 12rem;
-                    height: 16rem;
-                }
-            }
+          width: 12rem;
+          height: 16rem;
         }
-
-        .info-box {
-            .detail-info-item {
-                margin: 0.2rem;
-            }
-        }
+      }
     }
 
-    .book-chapter-container {
-        margin: 1rem;
-        user-select: none;
+    .info-box {
+      .detail-info-item {
+        margin: 0.2rem;
+      }
+    }
+  }
 
-        .chapter-item {
-            cursor: pointer;
-            margin: 0.1rem;
-        }
+  .book-chapter-container {
+    margin: 1rem;
+    user-select: none;
 
-        .chapter-item:hover {
-            color: #4fdb89;
-        }
+    .chapter-item {
+      cursor: pointer;
+      margin: 0.1rem;
     }
 
-    .book-operate-container {
-        position: absolute;
-        margin: 0 1rem;
-        border: 0.1rem;
-        width: 96%;
-        display: flex;
-        cursor: pointer;
-        user-select: none;
-
-        .book-operate-btn {
-            flex: 1;
-            text-align: center;
-            margin: 0.1rem;
-            line-height: 1.5rem;
-            border: 0.1rem solid #d7d7d7;
-            border-radius: 0.1rem;
-        }
-
-        .book-operate-btn:hover {
-            background-color: #4fdb89;
-            color: white;
-        }
+    .chapter-item:hover {
+      color: #4fdb89;
     }
+  }
+
+  .book-operate-container {
+    position: absolute;
+    margin: 0 1rem;
+    border: 0.1rem;
+    width: 96%;
+    display: flex;
+    cursor: pointer;
+    user-select: none;
+
+    .book-operate-btn {
+      flex: 1;
+      text-align: center;
+      margin: 0.1rem;
+      line-height: 1.5rem;
+      border: 0.1rem solid #d7d7d7;
+      border-radius: 0.1rem;
+    }
+
+    .book-operate-btn:hover {
+      background-color: #4fdb89;
+      color: white;
+    }
+  }
 }
 </style>

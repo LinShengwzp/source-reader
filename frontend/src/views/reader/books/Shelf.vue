@@ -11,7 +11,7 @@
         </div>
         <a-empty v-else :description="false"/>
 
-        <detail ref="bookDetail"/>
+        <detail :group-id="group.id" ref="bookDetail" @handleRemoveBook="handleRemoveBook"/>
     </div>
 </template>
 
@@ -24,7 +24,7 @@ export default {
     components: {Detail},
     data() {
         return {
-            groupId: '',
+            group: {},
             bookshelf: [], // 书架
         }
     },
@@ -52,10 +52,31 @@ export default {
                 }
             }
         },
-        handleBookInfo(bookInfo) {
-            console.log(bookInfo)
-            // 获取章节
-
+        async handleBookInfo(bookInfo) {
+            const that = this
+            if (!bookInfo || !bookInfo.id) {
+                return
+            }
+            const detail = await that.$ipc.invoke(ipcApiRoute.bookDetail, {
+                sourceId: bookInfo.sourceId,
+                queryInfo: bookInfo,
+            })
+            console.log("book detail", detail)
+            if (detail && detail.code === 200) {
+                bookInfo = {...bookInfo, ...detail.detail}
+                that.$nextTick(() => {
+                    that.$refs['bookDetail'].init({
+                        drawerTitle: bookInfo.bookName,
+                        showDrawer: true,
+                        sourceId: bookInfo.sourceId,
+                        bookInfo: bookInfo,
+                        chapterList: detail.chapter.list
+                    })
+                })
+            }
+        },
+        async handleRemoveBook(bookId) {
+            this.init(this.group)
         }
     }
 }
@@ -69,7 +90,6 @@ export default {
   height: 100%;
 
   .bookshelf-container {
-    height: 100%;
     overflow-x: scroll;
     display: flex;
 

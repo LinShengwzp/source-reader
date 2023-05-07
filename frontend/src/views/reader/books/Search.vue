@@ -78,7 +78,7 @@
             />
         </a-spin>
 
-        <detail ref="bookDetail" />
+        <detail :group-id="groupId" ref="bookDetail"/>
     </div>
 </template>
 
@@ -105,8 +105,8 @@ export default {
                 search: '',
                 searchList: [],
                 page: {
-                    index: 2, //从 第 1 页 开始
-                    size: 5,
+                    index: 16, //从 第 1 页 开始
+                    size: 1,
                     count: 0
                 }
             },
@@ -128,6 +128,7 @@ export default {
             that.searchData.type = type || 'text'
             that.searchData.search = search || '都市'
             that.searchData.platform = platform || 'StandarReader'
+            console.log("groupid", that.groupId)
         },
         childInputChange() {
 
@@ -180,8 +181,7 @@ export default {
             }
             const detail = await that.$ipc.invoke(ipcApiRoute.bookDetail, {
                 sourceId: sourceId,
-                detailUrl: bookInfo.detailUrl,
-                bookName: bookInfo.bookName,
+                queryInfo: bookInfo,
             })
             console.log("book detail", detail)
             if (detail && detail.code === 200) {

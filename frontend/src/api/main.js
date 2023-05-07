@@ -54,7 +54,7 @@ const ipcApiRoute = {
     bookRemove: 'controller.reader.bookRemove',
     searchBook: 'controller.reader.searchBook',
     bookDetail: 'controller.reader.bookDetail',
-
+    bookContent: 'controller.reader.bookContent',
 }
 
 /**

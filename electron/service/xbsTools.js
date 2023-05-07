@@ -419,6 +419,62 @@ const SourceTemplate = {
     "chapterList": {"actionID": "chapterList", "parserID": "DOM",}
 }
 
+const utils = {
+    objNull(obj) {
+        if (Object.keys(obj).length === 0) {
+            console.log("The object is empty");
+        }
+    }
+}
+
+class JsonPathParser {
+    str
+    element
+
+    constructor(content) {
+        if (typeof content === 'object') {
+            this.element = content
+            this.str = JSON.stringify(content)
+        } else {
+            this.str = content
+            try {
+                this.element = JSON.parse(content)
+            } catch (e) {
+                this.element = content
+            }
+        }
+    }
+
+    row() {
+        return this.str
+    }
+
+    content() {
+        if (this.element) {
+            if (Array.isArray(this.element)) {
+                if (this.element.length === 1) {
+                    return new JsonPathParser(this.element[0]).content()
+                }
+            } else {
+                if (Object.keys(this.element).length === 1) {
+                    const firstKey = Object.keys(this.element)[0]
+                    return new JsonPathParser(this.element[firstKey]).content()
+                }
+            }
+        }
+        return this.element
+    }
+
+    attributes() {
+
+    }
+
+    queryWithPath(path) {
+
+    }
+
+}
+
 /**
  * xpath解析器
  */
@@ -591,14 +647,19 @@ class SourceTools {
             },
             // 创建XPath解析器，可用于下面XPath解析器专用接口
             XPathParserWithSource(str) {
+                return new XPathParser(str)
             },
         },
         keyWord: '',
         offset: 0,
-        pageIndex: 0,
+        pageIndex: 1,
         requestUrls: [],
         responseUrl: '',
         responseHeaders: {},
+        queryInfo: {
+            contentUrl: "",
+        },
+        lastResponse: {}, // result，两次相同则停止
     }
     // 存放结果
     result
@@ -608,6 +669,10 @@ class SourceTools {
     resInfo
     // 存储当前解析有哪些path
     tagPath
+    // 存储返回结果的格式
+    resultTemplate
+    // 返回结果中的主要内容
+    templateMainKey
 
     constructor(sourceJson) {
         if (typeof sourceJson === 'object') {
@@ -623,18 +688,17 @@ class SourceTools {
     }
 
     //<editor-fold desc="public方法">
+
     /**
      * 书籍搜索
-     * @param keyWord
      * @param type
-     * @param offset
-     * @param pageIndex
+     * @param queryInfo
      */
-    async searchBook(keyWord, type, offset, pageIndex) {
+    async searchBook(type, queryInfo) {
         const searchBookConfig = this.sourceObject.searchBook
 
-
         return new Promise(async (resolve, reject) => {
+            const {keyWord, offset, pageIndex} = queryInfo
 
             if (!keyWord) {
                 console.error(`empty search string for this source: ${sourceObject['sourceName']}`)
@@ -653,12 +717,7 @@ class SourceTools {
             this.config = searchBookConfig
 
             this.params = {// 不要覆盖掉原有的方法
-                ...this.params, ...{
-                    // 这三个是之前需要处理好的
-                    keyWord: keyWord || '', // 需要转Unicode？
-                    offset: offset || 0,
-                    pageIndex: pageIndex || 1,
-                }
+                ...this.params, ...queryInfo
             }
             this.tagPath = [{
                 tag: "list",
@@ -666,6 +725,13 @@ class SourceTools {
                     {tag: 'cover', type: 'url'}, {tag: 'desc'}, {tag: 'status'},
                     {tag: 'wordCount'}, {tag: 'lastChapterTitle'}, {tag: 'detailUrl'}]
             }]
+            this.resultTemplate = {
+                list: [],
+                maxPage: 1,
+                success: true,
+                listLengthOnlyDebug: 1,
+            }
+            this.result = this.resultTemplate
 
             try {
                 // 处理请求信息
@@ -691,15 +757,16 @@ class SourceTools {
 
     /**
      * 书籍详情
-     * @param detailUrl
+     * @param queryInfo
      * @returns {Promise<unknown>}
      */
-    async bookDetail(detailUrl) {
+    async bookDetail(queryInfo) {
         const searchConfig = this.sourceObject.searchBook
         const bookDetailConfig = this.sourceObject.bookDetail
         const chapterListConfig = this.sourceObject.chapterList
 
         return new Promise(async (resolve, reject) => {
+            const {detailUrl} = queryInfo
             if (!detailUrl) {
                 reject(`error book detail url [${detailUrl}]`)
             }
@@ -712,11 +779,14 @@ class SourceTools {
                 }
             }
 
-            // 存储url
+            // 存储url，后面要用
             this.result = detailUrl
             this.config = detailConfig
+            this.params.queryInfo = queryInfo
             // 处理config中的 requestInfo 被 search 覆盖的问题
-            detailConfig['requestInfo'] = detailUrl
+            if (!detailConfig['requestInfo']) {
+                detailConfig['requestInfo'] = detailUrl
+            }
 
             try {
                 this.buildRequestUrl()
@@ -725,9 +795,9 @@ class SourceTools {
                 await this.requestUrl()
 
                 // 处理详情内容
+                this.result = queryInfo
                 this.tagPath = [{tag: 'cover', type: 'url'}, {tag: 'desc'}, {tag: 'status'},
                     {tag: 'wordCount'}, {tag: 'lastChapterTitle'}]
-
                 // 填入结果
                 await this.buildResponse()
                 let detailResult = {}
@@ -735,14 +805,45 @@ class SourceTools {
                     detailResult = this.result
                 }
 
+
                 // 处理章节列表
+                this.result = detailUrl
+                const chapterConfig = {
+                    ...detailConfig, ...chapterListConfig, ...{
+                        host: searchConfig.host,
+                        httpHeaders: searchConfig.httpHeaders,
+                    }
+                }
+                this.config = chapterConfig
+                if (chapterConfig['requestInfo'] !== detailConfig['requestInfo']) {
+                    // 重新请求
+                    this.buildRequestUrl()
+
+                    // 执行请求
+                    await this.requestUrl()
+                }
+
                 this.tagPath = [{
                     tag: "list",
+                    type: "list",
                     child: [{tag: 'title'}, {tag: 'url', type: 'url'}]
                 }, {tag: "nextPageUrl"}, {tag: 'updateTime'}]
+                this.resultTemplate = {
+                    list: [],
+                    success: true,
+                    autoRequestMore: true,
+                    nextPageUrl: '',
+                    more: true,
+                    maxPage: 1,
+                }
+                this.templateMainKey = "list"
                 this.config = chapterListConfig
                 // 填入结果
                 await this.buildResponse()
+
+                // 下一页
+                await this.nextPage()
+
                 const chapterList = {...this.result}
 
                 resolve({
@@ -755,8 +856,156 @@ class SourceTools {
             } catch (e) {
                 reject(e)
             }
-
         })
+    }
+
+    /**
+     * 获取章节内容
+     * @param queryInfo
+     * @returns {Promise<void>}
+     */
+    async bookContent(queryInfo) {
+        const {chapterContent} = this.sourceObject
+        return new Promise(async (resolve, reject) => {
+            const chapterUrl = queryInfo.url
+            if (!chapterUrl) {
+                reject(`error book content url [${chapterUrl}]`)
+            }
+            this.config = chapterContent
+            this.result = chapterUrl
+            this.params.queryInfo = queryInfo
+
+            if (!chapterContent['requestInfo']) {
+                chapterContent['requestInfo'] = chapterUrl
+            }
+            try {
+                // 处理详情内容
+                this.tagPath = [{tag: 'content'}, {tag: 'nextPageUrl'}]
+
+                this.resultTemplate = {
+                    content: "",
+                    removeHtmlKeys: '',
+                    nextPageUrl: '',
+                    maxPage: 1,
+                    autoRequestMore: true,
+                    success: 1 || true,
+                    more: true,
+                }
+                this.templateMainKey = 'content'
+                this.result = this.resultTemplate
+                this.buildRequestUrl()
+
+                // 执行请求
+                await this.requestUrl()
+
+                // 填入结果
+                await this.buildResponse()
+
+                // 下一页
+                await this.nextPage()
+
+                if (typeof this.result === 'string') {
+                    this.result.content = this.result
+                }
+                if (typeof this.result === 'object') {
+                    this.result = {...this.result}
+                }
+                resolve({
+                    config: this.config,
+                    params: this.params,
+                    result: this.result || {}
+                })
+            } catch (e) {
+                reject(e)
+            }
+        })
+    }
+
+    /**
+     *
+     * @returns {Promise<void>}
+     */
+    async nextPage() {
+        this.result = {
+            ...this.resultTemplate, ...this.result
+        }
+
+        const {config, result, params} = this
+
+        if (!config.hasOwnProperty("moreKeys")
+            || !config.moreKeys.hasOwnProperty("maxPage")) {
+            return this.result
+        }
+        const {moreKeys} = config
+        this.result.removeHtmlKeys = moreKeys.moreKeys
+        this.result.maxPage = moreKeys.maxPage
+        this.result.pageSize = moreKeys.pageSize
+        if (!result.autoRequestMore || !config.nextPageUrl) {
+            this.result.autoRequestMore = false
+            this.result.more = false
+            return this.result
+        }
+        // 缓存result
+        params.lastResponse = {...result}
+        let resultMerge = {...params.lastResponse}
+
+        // 存在 nextPageUrl
+        for (let page = params.pageIndex; page <= moreKeys.maxPage; page++) {
+            console.log("begin next page", page)
+            params.pageIndex = page
+            let resultTemp = {}
+
+            // 请求
+            this.result = config.nextPageUrl
+            config.requestInfo = config.nextPageUrl
+            // 重新请求
+            this.buildRequestUrl()
+
+            // 执行请求
+            await this.requestUrl()
+
+            // 填入结果
+            await this.buildResponse()
+
+            resultTemp = {
+                ...this.resultTemplate, ...this.result
+            }
+
+            // 判断两次获取的临时内容是否一致，一致则跳出循环
+            if (params.lastResponse[this.templateMainKey] === resultTemp[this.templateMainKey]) {
+                result.more = false
+                console.log("stop next page")
+                break
+            }
+
+            // 合并两次的result
+            // 这里覆盖除 mainKey 以外的数据
+            for (const key in resultTemp) {
+                if (key !== this.templateMainKey) {
+                    this.result[key] = resultTemp[key]
+                    resultMerge[key] = resultTemp[key]
+                }
+            }
+
+            // 处理 mainKey 的数据，合并result和resultTemp
+            if (typeof resultTemp[this.templateMainKey] === 'string') {
+                resultMerge[this.templateMainKey] += resultTemp[this.templateMainKey]
+            }
+            if (typeof resultTemp[this.templateMainKey] === 'object') {
+                if (Array.isArray(resultTemp[this.templateMainKey])) {
+                    resultMerge[this.templateMainKey] = [...resultMerge[this.templateMainKey], ...resultTemp[this.templateMainKey]]
+                    resultMerge.listLengthOnlyDebug = resultMerge[this.templateMainKey].length
+                } else {
+                    resultMerge[this.templateMainKey] = {...resultMerge[this.templateMainKey], ...resultTemp[this.templateMainKey]}
+                }
+            }
+
+            // 缓存本次result
+            params.lastResponse = resultTemp
+
+        }
+        this.result = resultMerge
+        return this.result
     }
 
     //</editor-fold>
@@ -843,7 +1092,7 @@ class SourceTools {
         if (!resInfo) {
             return;
         }
-        this.result = {}
+        this.result = this.resultTemplate
         const encode = this.getEncoding('requestParamsEncode')
 
         let jsonPath = false
@@ -851,6 +1100,10 @@ class SourceTools {
         switch (config.responseFormatType) {
             case 'base64str': {
                 break
+            }
+            case 'json': {
+                // 这里用下面一样的处理方式
+                jsonPath = true
             }
             case 'html':
             case 'xml': {
@@ -864,7 +1117,7 @@ class SourceTools {
                             continue
                         }
                         const matchesRes = this.buildPathContent(resInfo, [tag], jsonPath)
-                        const matches = matchesRes[tagPath]
+                        let matches = new JsonPathParser(matchesRes[tagPath]).content()
                         if (!matches) {
                             continue
                         }
@@ -885,10 +1138,6 @@ class SourceTools {
                     }
                 }
 
-                break
-            }
-            case 'json': {
-                jsonPath = true
                 break
             }
             case 'data': {
@@ -1001,18 +1250,15 @@ class SourceTools {
         const {config} = this
         const res = {}
         tagNames.forEach(tag => {
+            // 标签解析命令
             const tagName = tag['tag']
-            if (config.hasOwnProperty(tagName)) {
-                // 标签解析命令
-                try {
-                    const tagCommand = config[tagName]
-                    res[tagName] = this.pathMatch(content, tagCommand, jsonPath)
-                    if (tag['type'] && tag['type'] === 'url') {
-                        res[tagName] = this.addDomain(res[tagName])
-                    }
-                } catch (e) {
-                    console.error(`parse path tag [${tagName}] for content [${content}] failure!`)
+            try {
+                res[tagName] = this.pathMatch(content, tag, jsonPath)
+                if (tag['type'] && tag['type'] === 'url') {
+                    res[tagName] = this.addDomain(res[tagName])
                 }
+            } catch (e) {
+                console.error(`parse path tag [${tagName}] for content [${content}] failure!`)
             }
         })
 
@@ -1044,14 +1290,21 @@ class SourceTools {
      * 处理path，path可能是 xpath 或者 jsonpath
      * 解析标签包括 path js tagCommand 三种不同
      * @param content 被解析的字符串
-     * @param tagCommand 解析标签
+     * @param tag 解析标签
      * @param jsonPath 是否是jsonpath
      * @returns {*[]}
      */
-    pathMatch(content, tagCommand, jsonPath) {
-        if (!content || !tagCommand) {
+    pathMatch(content, tag, jsonPath) {
+        const {config} = this
+        if (!content || !tag) {
             return null;
         }
+        const tagName = tag['tag']
+        const tagType = tag['type'] || 'string'
+        if (!config.hasOwnProperty(tagName)) {
+            return null;
+        }
+        const tagCommand = config[tagName]
         const commandPipe = this.pipeStr(tagCommand)
         const xPathParser = new XPathParser(content.toString())
 
@@ -1118,19 +1371,24 @@ class SourceTools {
                         if (!jsonPath) {
                             // xpath 需要处理成 string方便下一层搜索
                             query = query.map(i => new XPathParser(i).raw())
+                            if (tagType === 'string' && Array.isArray(query)) {
+                                if (tagName === 'content') {
+                                    query = query.join("\n")
+                                }
+                            }
                         }
                     } else {
                         if (query.length === 0) {
                             continue
                         }
                         const firstNode = query[0]
-                        if (!firstNode) {
-                            continue
-                        }
 
                         // 直接取值
                         if (jsonPath) {
-                            query = firstNode
+                            query = new JsonPathParser(firstNode).content()
+                            if (tagType === 'list' && !Array.isArray(query)) {
+                                query = [query]
+                            }
                         } else {
                             query = new XPathParser(firstNode).content()
                         }
@@ -1145,6 +1403,12 @@ class SourceTools {
                 }
             }
         }
+
+        // 根据不同的type最后处理
+        if (tagType && tagType === 'url') {
+            resultTemp = this.addDomain(resultTemp)
+        }
+
         return resultTemp
     }
 
@@ -1241,9 +1505,7 @@ class SourceTools {
      */
     pipeStr(str) {
         const res = []
-
         let parseRes = this.parseStringAndJs(str);
-
         if (parseRes && parseRes.length > 0) {
             parseRes.forEach(part => {
                 if (part && part.content) {
@@ -1300,7 +1562,7 @@ class SourceTools {
                                         .replaceAll(`%@filter`, filter)
 
                                     // result 如果要参与替换，内容只能是字符串
-                                    if (typeof result === 'string') {
+                                    if (typeof result !== 'object') {
                                         resStr = resStr.replaceAll(`%@result`, result)
                                     }
 
@@ -1443,10 +1705,16 @@ class XbsToolService extends Service {
      */
     async searchBook(sourceJson, search, type) {
         const sourceTools = new SourceTools(sourceJson);
-        // TODO 处理初始化pageIndex
+        // TODO 处理初始化pageIndex 填入 queryInfo
         return new Promise(async (resolve, reject) => {
             try {
-                const searchRes = await sourceTools.searchBook(search, type, 0, 1)
+                const queryInfo = {
+                    // 这三个是之前需要处理好的
+                    keyWord: search || '', // 需要转Unicode？
+                    offset: 0,
+                    pageIndex: 1,
+                };
+                const searchRes = await sourceTools.searchBook(type, queryInfo)
                 resolve(searchRes)
             } catch (e) {
                 reject(e)
@@ -1457,25 +1725,37 @@ class XbsToolService extends Service {
     /**
      * 书籍详情
      * @param sourceJson 源
-     * @param detailUrl 详情地址
+     * @param queryInfo 详情地址
      * @returns {Promise<unknown>}
      */
-    async bookDetail(sourceJson, detailUrl) {
+    async bookDetail(sourceJson, queryInfo) {
         const sourceTools = new SourceTools(sourceJson);
         return new Promise(async (resolve, reject) => {
             try {
-                const detail = await sourceTools.bookDetail(detailUrl);
+                const detail = await sourceTools.bookDetail(queryInfo);
                 resolve(detail)
             } catch (e) {
                 reject(e)
             }
-
         })
     }
 
-
-    async bookChapter(sourceJson) {
-
+    /**
+     * 获取章节内容
+     * @param sourceJson
+     * @param queryInfo
+     * @returns {Promise<unknown>}
+     */
+    async bookContent(sourceJson, queryInfo) {
+        const sourceTools = new SourceTools(sourceJson);
+        return new Promise(async (resolve, reject) => {
+            try {
+                const content = await sourceTools.bookContent(queryInfo);
+                resolve(content)
+            } catch (e) {
+                reject(e)
+            }
+        })
     }
 }
 

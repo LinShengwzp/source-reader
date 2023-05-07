@@ -271,6 +271,10 @@ class ReaderSourceStorageService extends Service {
                 default: 0,
                 comment: '是否缓存'
             },
+            content: {
+                type: 'TEXT',
+                comment: '书籍内容'
+            },
             title: {
                 type: 'TEXT',
                 notNull: true,
@@ -596,6 +600,61 @@ class ReaderSourceStorageService extends Service {
             throw e
         }
         throw new Error("insert data error")
+    }
+
+    /**
+     * 批量插入，默认覆盖
+     * @param tableName
+     * @param dataArray
+     * @returns {Promise<void>}
+     */
+    async saveBatch(tableName, dataArray) {
+        const entity = await this.checkAndCreateTableSqlite(tableName);
+        let pk = ''
+        const buildColumns = (data) => {
+            let cols = []
+
+            for (const col in entity) {
+                if (entity[col].pk) {
+                    pk = col
+                    break
+                }
+            }
+
+            for (const col in data) {
+                if (entity[col]) {
+                    if (!(typeof data[col] === 'undefined')) {
+
+                        if (typeof data[col] === 'boolean') {
+                            data[col] = data[col] ? 1 : 0
+                        }
+
+                        cols.push(col)
+                    }
+                }
+            }
+
+            if (cols && cols.length >= 0) {
+                return ` (${cols.join(',')}) values (${cols.map(i => `@${i}`).join(',')}) `
+            } else {
+                throw new Error(`Please provide the correct data`);
+            }
+        }
+
+        try {
+            this.readerSqliteDB.db.exec('BEGIN TRANSACTION');
+            let sql = `INSERT INTO ${tableName} ${buildColumns(dataArray[0])}`;
+            const insert = this.readerSqliteDB.db.prepare(sql);
+            dataArray.forEach(item => insert.run(item));
+            this.readerSqliteDB.db.exec('COMMIT');
+            return {
+                message: 'success'
+            }
+        } catch (e) {
+            return {
+                message: e
+            }
+        }
     }
 
     /**

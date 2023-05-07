@@ -99,6 +99,13 @@ class ReaderController extends Controller {
             case 'add' :
                 const res = await reader.addData(tableName, data, cover);
                 return this.success(res.result, res.message)
+            case 'saveBatch' :
+                const {message} = await reader.saveBatch(tableName, data);
+                if (message === 'success') {
+                    return this.success()
+                } else {
+                    return this.error(message)
+                }
             case 'del' :
                 return this.success(await reader.delData(tableName, data))
             case 'update' :
@@ -340,7 +347,8 @@ class ReaderController extends Controller {
             return this.error("null data")
         }
 
-        const {sourceId, detailUrl, bookName} = args
+        const {sourceId, queryInfo} = args
+        const {detailUrl, bookName} = queryInfo
         if (!sourceId || !detailUrl) {
             return this.error("error detail params")
         }
@@ -348,7 +356,6 @@ class ReaderController extends Controller {
         const reader = service.reader
 
         return new Promise(async (resolve, reject) => {
-
             // 获取配置
             const sourceInfo = await reader.queryOne('bookSource', {
                 id: sourceId,
@@ -401,7 +408,7 @@ class ReaderController extends Controller {
                     // 由于传入了 detailUrl，这里可以直接用这个去请求网页
                     try {
                         const sourceJson = JSON.parse(sourceInfo['sourceJson'])
-                        const detailResult = await this.xbs.bookDetail(sourceJson, detailUrl)
+                        const detailResult = await this.xbs.bookDetail(sourceJson, queryInfo)
                         if (detailResult) {
                             resolve({
                                 code: 200,
@@ -437,8 +444,104 @@ class ReaderController extends Controller {
      * @returns {Promise<unknown>}
      */
     async bookContent(args) {
-        return new Promise((resolve, reject) => {
+        const {bookId, chapterId, index} = args
+        return new Promise(async (resolve, reject) => {
 
+            if (!bookId) {
+                reject(this.error("error bookId"))
+            }
+            const bookRes = await this.dataOperator('bookInfo', "get", {
+                id: bookId
+            }, false)
+
+            if (!bookRes || !bookRes.result) {
+                reject(this.error("error bookId"))
+            }
+            const book = bookRes.result[0]
+            let chapter = {}
+            if (!chapterId) {
+                if (typeof index === "undefined") {
+                    reject(this.error("error chapterId or chapter index"))
+                } else {
+                    chapter = await this.dataOperator('bookChapter', "get", {
+                        bookId: bookId,
+                        sort: index
+                    }, false)
+                }
+            } else {
+                chapter = await this.dataOperator('bookChapter', "get", {
+                    id: chapterId
+                }, false)
+            }
+
+            if (!chapter || !chapter.result || chapter.result.length < 1) {
+                // 尝试使用递归处理章节未存储的问题
+                const detail = await this.bookInfoSave({
+                    groupId: book.groupId,
+                    sourceId: book.sourceId,
+                    detailUrl: book.detailUrl,
+                    queryInfo: book
+                })
+                chapter = await this.dataOperator('bookChapter', "get", {
+                    bookId: bookId,
+                    sort: index
+                }, false)
+                if (!chapter) {
+                    reject(this.error("error chapterId or chapter index"))
+                }
+            }
+
+            let result = chapter.result[0]
+            if (!result.id) {
+                reject(this.error("error chapterId or chapter index"))
+            }
+
+            if (result.content) {
+                resolve(this.success(result))
+            }
+            // 获取配置
+            const sourceInfo = await this.reader.queryOne('bookSource', {
+                id: result.sourceId,
+                sourceJson: {
+                    query: true
+                },
+                platform: {
+                    query: true
+                },
+                sourceType: {
+                    query: true
+                },
+            })
+
+            if (!sourceInfo || !sourceInfo['sourceJson']) {
+                reject(this.error(`error source ID [${result.sourceId}]`))
+            }
+
+            switch (sourceInfo.platform) {
+                case "StandarReader": {
+                    // 由于传入了 detailUrl，这里可以直接用这个去请求网页
+                    try {
+                        const sourceJson = JSON.parse(sourceInfo['sourceJson'])
+                        const contentResult = await this.xbs.bookContent(sourceJson, {
+                            title: result.title,
+                            url: result.url
+                        })
+                        if (contentResult.result && contentResult.result.content) {
+                            result.content = contentResult.result.content
+                            // TODO 区分类型
+                            result.wordCount = result.content.length
+                            result.currReadContent = 0
+                            const updateChapter = await this.dataOperator('bookChapter', "update", result, true)
+                            if (updateChapter && updateChapter.result) {
+                                result = updateChapter.result
+                            }
+                        }
+                        resolve(this.success(contentResult.result))
+                    } catch (e) {
+                        reject(this.error(e))
+                    }
+                }
+            }
         })
     }
 
@@ -468,8 +571,7 @@ class ReaderController extends Controller {
             // 重新从网络上获取detail和 chapter
             const detail = await this.bookDetail({
                 sourceId: sourceId,
-                detailUrl: detailUrl,
-                platform: group.platform || source.platform
+                queryInfo: bookInfo,
             })
 
             if (!detail) {
@@ -498,27 +600,52 @@ class ReaderController extends Controller {
                 const book = save.result
                 if (detail.chapter && detail.chapter.list) {
                     // 先清空，保证没有重复
-                    await this.dataOperator("bookChapter", "del", {bookId: book.id})
-                    detail.chapter.list.forEach((chapter, index) => {
-                        // 写入数据库
-                        this.dataOperator("bookChapter", "add", {
-                            bookId: book.id,
-                            sourceId: book.sourceId,
-                            platform: book.platform,
-                            sourceType: book.sourceType,
-                            cached: 0,
-                            title: chapter.title,
-                            url: chapter.url,
-                            desc: "",
-                            wordCount: 0,
-                            currReadContent: 0,
-                            sort: index
-                        }, true)
-                    })
+                    if (!args.skipChapter) {
+                        this.bookChapterSave({
+                            bookInfo: book,
+                            chapterList: detail.chapter.list
+                        })
+                    }
                 }
             }
 
             resolve(save)
+        })
+    }
+
+    /**
+     * 存储章节
+     * @param args
+     * @returns {Promise<unknown>}
+     */
+    async bookChapterSave(args) {
+        const {bookInfo, chapterList} = args
+        return new Promise(async (resolve, reject) => {
+            if (!bookInfo || !bookInfo.id) {
+                reject(this.error("error book data"))
+            }
+            if (!chapterList || chapterList.length <= 0) {
+                reject(this.error("error chapter data"))
+            }
+            await this.dataOperator("bookChapter", "del", {bookId: bookInfo.id})
+            const saveArray = []
+            chapterList.forEach((chapter, index) => {
+                // 写入数据库
+                saveArray.push({
+                    bookId: bookInfo.id,
+                    sourceId: bookInfo.sourceId,
+                    platform: bookInfo.platform,
+                    sourceType: bookInfo.sourceType,
+                    cached: 0,
+                    title: chapter.title,
+                    url: chapter.url,
+                    desc: "",
+                    wordCount: 0,
+                    currReadContent: 0,
+                    sort: index
+                })
+            })
+            this.dataOperator("bookChapter", "saveBatch", saveArray, true)
         })
     }
 

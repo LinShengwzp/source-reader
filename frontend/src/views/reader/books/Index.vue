@@ -221,7 +221,7 @@ export default {
                 that.bookData.bookGroup = res.result
                 that.groupForm = that.$form.createForm(this, {name: 'groupForm'})
                 if (res.result && res.result.length > 0) {
-                    that.handleGroupItemClick(res.result[0])
+                    await that.handleGroupItemClick(res.result[0])
                 }
             }
         },
