@@ -18,3 +18,10 @@ You can learn more about Take Over mode [here](https://github.com/johnsoncodehk/
 
 https://tauri.app/zh-cn/v1/guides/faq
 https://juejin.cn/post/7067342513920540686
+
+
+yarn
+
+yarn tauri info 
+
+yarn tauri dev
