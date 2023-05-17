@@ -22,7 +22,7 @@ import Footer from "@/components/Footer.vue";
   display: flex;
 
   .header-box {
-    flex: 1;
+    flex: 2;
     display: flex;
     /*垂直居中*/
     align-items: center;
@@ -31,16 +31,22 @@ import Footer from "@/components/Footer.vue";
   }
 
   .main-box {
-    flex: 8;
+    flex: 16;
   }
 
   .footer-box {
-    flex: 1;
+    flex: 2;
     /* 颜色 x偏移 y偏移 模糊 扩散 */
     box-shadow: #9a9a9a 0.1rem 0.3rem 0.8rem 0.4rem;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  @media screen and (min-height: 1200px) {
+    .footer-box {
+      flex: 1.5;
+    }
   }
 
 }
