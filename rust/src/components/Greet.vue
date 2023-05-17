@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/tauri";
+import {Edit} from "@element-plus/icons-vue";
 
 const greetMsg = ref("");
 const name = ref("");
@@ -15,6 +16,7 @@ async function greet() {
   <div class="card">
     <input id="greet-input" v-model="name" placeholder="Enter a name..." />
     <button type="button" @click="greet()">Greet</button>
+    <el-button type="primary" :icon="Edit as any" circle />
   </div>
 
   <p>{{ greetMsg }}</p>
