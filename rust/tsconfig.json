@@ -12,7 +12,13 @@
     "esModuleInterop": true,
     "lib": ["ESNext", "DOM"],
     "skipLibCheck": true,
-    "types": ["element-plus/global"]
+    "types": ["element-plus/global"],
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "compilerOptions": {
+      "types": ["vite-plugin-svg-icons/client"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
   "references": [{ "path": "./tsconfig.node.json" }]

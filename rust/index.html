@@ -1,14 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8"/>
+    <link rel="icon" type="image/svg+xml" href="/vite.svg"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Tauri + Vue + TS</title>
-  </head>
+</head>
 
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<body>
+<div id="app"></div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+
+<style>
+    html {
+        height: 100%;
+        width: 100%;
+    }
+
+    body {
+        position: relative;
+        height: 100%;
+        width: 100%;
+        margin: 0;
+    }
+
+    #app {
+        height: 100%;
+        width: 100%;
+    }
+
+    /* 滚动条 */
+    ::-webkit-scrollbar {
+        width: 0.8rem;
+        height: 1rem;
+        border-radius: 2em;
+    }
+
+    ::-webkit-scrollbar-button {
+        width: 10px;
+        height: 0
+    }
+
+    ::-webkit-scrollbar-track {
+        background: 0 0;
+        border-radius: 2em;
+    }
+
+    @keyframes fade-in-out {
+        0% {
+            background-color: rgba(177, 177, 177, 0.3);
+        }
+        50% {
+            background-color: rgba(177, 177, 177, 0.5);
+        }
+        100% {
+            background-color: rgba(177, 177, 177, 1);
+        }
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background-color: rgba(177, 177, 177, 0.3);
+        -webkit-animation: fade-in-out .3s;
+        animation: fade-in-out 13s;
+        border-radius: 2em;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: #b1b1b1;
+        -webkit-animation: none;
+        animation: none;
+        border-radius: 2em;
+    }
+
+    ::-webkit-scrollbar-thumb:active {
+        background-color: #b1b1b1;
+        border-radius: 2em;
+    }
+</style>
 </html>
