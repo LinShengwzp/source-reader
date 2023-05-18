@@ -9,6 +9,9 @@ const menuList: Array<MenuItem> = reactive([
     icon: "novel",
     name: '书架'
   }, {
+    icon: "feedback",
+    name: '书源'
+  }, {
     icon: "discover",
     name: '发现'
   }, {

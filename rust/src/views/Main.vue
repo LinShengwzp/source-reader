@@ -43,9 +43,15 @@ import Footer from "@/components/Footer.vue";
     justify-content: center;
   }
 
-  @media screen and (min-height: 1200px) {
+  @media screen and (min-height: 1000px) {
     .footer-box {
       flex: 1.5;
+    }
+  }
+
+  @media screen and (min-height: 1300px) {
+    .footer-box {
+      flex: 1.3;
     }
   }
 
