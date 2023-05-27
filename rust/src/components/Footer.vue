@@ -36,7 +36,7 @@ defineExpose({
 
 <template>
   <div class="footer-container">
-    <div v-for="menu in menuList" class="footer-menu " @click="menuSelect(menu)">
+    <div v-for="menu in menuList" class="footer-menu hvr-shrink" @click="menuSelect(menu)">
       <svg-icon class="menu-icon" :icon="menuIcon(menu.icon)"/>
       <span class="menu-name">{{ menu.label }}</span>
     </div>

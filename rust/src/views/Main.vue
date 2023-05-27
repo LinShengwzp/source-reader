@@ -34,7 +34,14 @@ const menuChang = (menu: MenuItem) => {
     <el-container>
       <el-header class="header-box">{{ initData.currMenu.label }}</el-header>
       <el-main class="main-box">
-        <router-view></router-view>
+
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <keep-alive>
+              <component :is="Component"/>
+            </keep-alive>
+          </transition>
+        </router-view>
       </el-main>
       <el-footer class="footer-box">
         <Footer ref="footerRef" @menu-chang="menuChang"></Footer>
@@ -56,11 +63,12 @@ const menuChang = (menu: MenuItem) => {
     /*垂直居中*/
     align-items: center;
     /*水平居中*/
-    justify-content: center;
+    //justify-content: center;
   }
 
   .main-box {
     flex: 17;
+    padding: 0;
   }
 
   .footer-box {
@@ -70,6 +78,7 @@ const menuChang = (menu: MenuItem) => {
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 0.5rem;
   }
 
   @media screen and (min-height: 1000px) {

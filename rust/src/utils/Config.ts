@@ -10,7 +10,7 @@ export const MenuList: Array<MenuItem> = [
         id: 1,
         icon: "feedback",
         name: 'nodes',
-        label: '书源',
+        label: '节点',
     }, {
         id: 2,
         icon: "discover",

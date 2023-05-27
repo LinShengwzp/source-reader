@@ -42,7 +42,9 @@
         "resizable": true,
         "title": "source-reader",
         "width": 1000,
-        "height": 800
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 700
       }
     ]
   }
