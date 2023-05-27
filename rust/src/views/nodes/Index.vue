@@ -37,6 +37,12 @@ const nodeOptions: Array<NodeOperate> = [{
   label: '导出节点',
   operate: () => {
   }
+}, {
+  id: 3,
+  name: 'createNodes',
+  label: '新建节点',
+  operate: () => {
+  }
 }]
 
 const handleNodeOperateClick = (operate: NodeOperate) => {
