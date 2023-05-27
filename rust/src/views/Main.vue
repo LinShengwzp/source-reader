@@ -1,14 +1,43 @@
 <script setup lang="ts">
 import Footer from "@/components/Footer.vue";
+import {MenuItem} from "@/utils/Models";
+import {onMounted, reactive, ref} from "vue";
+import router from "@/router/Router";
+import {MenuList} from "@/utils/Config";
+
+const footerRef = ref()
+const initData = reactive({
+  currMenu: {},
+})
+
+onMounted(() => {
+  menuChang(MenuList[1])
+  footerRef.value.setMenu(initData.currMenu)
+})
+
+/**
+ * 菜单选择
+ * @param menu
+ */
+const menuChang = (menu: MenuItem) => {
+  initData.currMenu = menu
+  console.log(`current menu: ${initData.currMenu}`)
+  router.push({
+    name: menu.name
+  })
+}
+
 </script>
 
 <template>
   <div class="main-container">
     <el-container>
-      <el-header class="header-box">Header</el-header>
-      <el-main class="main-box">Main</el-main>
+      <el-header class="header-box">{{ initData.currMenu.label }}</el-header>
+      <el-main class="main-box">
+        <router-view></router-view>
+      </el-main>
       <el-footer class="footer-box">
-        <Footer></Footer>
+        <Footer ref="footerRef" @menu-chang="menuChang"></Footer>
       </el-footer>
     </el-container>
   </div>
@@ -22,7 +51,7 @@ import Footer from "@/components/Footer.vue";
   display: flex;
 
   .header-box {
-    flex: 2;
+    flex: 1;
     display: flex;
     /*垂直居中*/
     align-items: center;
@@ -31,7 +60,7 @@ import Footer from "@/components/Footer.vue";
   }
 
   .main-box {
-    flex: 16;
+    flex: 17;
   }
 
   .footer-box {

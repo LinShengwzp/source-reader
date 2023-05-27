@@ -2,36 +2,35 @@
 import SvgIcon from "@/components/SvgIcon/Index.vue";
 import {reactive, ref} from "vue";
 import {MenuItem} from "@/utils/Models";
+import {MenuList} from "@/utils/Config";
 
+const emit = defineEmits(["menuChang"])
 const activeMenuIcon = ref("novel")
-const menuList: Array<MenuItem> = reactive([
-  {
-    icon: "novel",
-    name: '书架'
-  }, {
-    icon: "feedback",
-    name: '书源'
-  }, {
-    icon: "discover",
-    name: '发现'
-  }, {
-    icon: "index",
-    name: '首页'
-  }, {
-    icon: "setting",
-    name: '设置'
-  },
-])
+const menuList: Array<MenuItem> = reactive(MenuList)
+
+const setMenu = (menu: MenuItem): boolean => {
+  if (menu && menu.icon && (menu.icon !== activeMenuIcon.value)) {
+    activeMenuIcon.value = menu.icon
+    return true
+  }
+  return false
+}
 
 const menuIcon = (icon: string) => {
   return icon === activeMenuIcon.value ? `${icon}-select` : icon
 }
 
 const menuSelect = (menu: MenuItem) => {
-  if (menu && menu.icon) {
-    activeMenuIcon.value = menu.icon
+  // 触发自定义事件，并传递参数
+  if (setMenu(menu)) {
+    emit('menuChang', menu);
   }
 }
+
+
+defineExpose({
+  setMenu
+})
 
 </script>
 
@@ -39,7 +38,7 @@ const menuSelect = (menu: MenuItem) => {
   <div class="footer-container">
     <div v-for="menu in menuList" class="footer-menu " @click="menuSelect(menu)">
       <svg-icon class="menu-icon" :icon="menuIcon(menu.icon)"/>
-      <span class="menu-name">{{ menu.name }}</span>
+      <span class="menu-name">{{ menu.label }}</span>
     </div>
   </div>
 </template>
@@ -54,6 +53,7 @@ const menuSelect = (menu: MenuItem) => {
   .footer-menu {
     flex: 1;
     cursor: pointer;
+    user-select: none;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -80,7 +80,6 @@ const menuSelect = (menu: MenuItem) => {
         display: none;
       }
     }
-
   }
 
   .footer-menu:hover {
