@@ -154,6 +154,24 @@ export interface TypeInfo {
     default?: boolean;
 }
 
+export interface PageInfo {
+    total: number,
+    size: number,
+    pageCount: number,
+    currPage: number,
+}
+
+export interface FileInfo {
+    file?: File,
+    fileType?: FileType,
+    analyseNode?: object,
+    dataInfo?: Array<any>,
+    nodeList?: Array<any>,
+    menuList?: Array<any>,
+    nodeSearch?: string,
+    page: PageInfo
+}
+
 /**
  * 香色闺阁节点详细内容
  */
@@ -194,9 +212,19 @@ export interface SRNodeInfo {
 
 /**
  * 获取所属的内容
- * @param typeName
+ * @param type
  * @param value
  */
-export const findType = (typeName: string, value: string): TypeInfo | null => {
+export const findType = (type: Array<TypeInfo>, value: string): TypeInfo | null => {
+
+    if (type && type.length > 0) {
+        for (const index in type) {
+            const item = type[index]
+            if (item.name === value) {
+                return item;
+            }
+        }
+    }
+
     return null;
 }

@@ -1,31 +1,15 @@
 <script setup lang="ts">
-import {computed, reactive, ref} from "vue";
-import {CaretLeft, CaretRight, StarFilled, UploadFilled} from '@element-plus/icons-vue'
+import {reactive, ref} from "vue";
+import {UploadFilled} from '@element-plus/icons-vue'
 import {ElMessage, UploadFile, UploadFiles} from "element-plus";
-import {FileType, NodeInfo, SRNodeInfo} from "@/utils/Models";
-import {analyseXbsFile, analyseJsonFile} from "@/utils/xbsTool/xbsFileTools";
+import {FileInfo, FileType, NodeInfo, SRNodeInfo} from "@/utils/Models";
+import {analyseJsonFile, analyseXbsFile} from "@/utils/xbsTool/xbsFileTools";
 import {compressJson} from "@/utils/Strutil";
 
-
-interface PageInfo {
-  total: number,
-  size: number,
-  pageCount: number,
-  currPage: number,
-}
-
-interface FileInfo {
-  file?: File,
-  fileType?: FileType,
-  analyseNode?: object,
-  dataInfo?: Array<any>,
-  nodeList?: Array<any>,
-  menuList?: Array<any>,
-  nodeSearch?: string,
-  page: PageInfo
-}
+import NodeList from "@/views/nodes/components/NodeList.vue";
 
 const fileUploadRef = ref()
+const nodeListRef = ref()
 const currFile: FileInfo = reactive({
   page: {
     total: 0,
@@ -39,16 +23,6 @@ const existNodeData = reactive({
   dialogVisible: false,
   coverNode: false,
   hasSetCover: false,
-})
-const modifyNode = reactive({
-  showEditor: false,
-  style: {
-    listBoxWidth: 100,
-    editBoxWidth: 0,
-    transform: "rotate(180deg)",
-    transition: "all .3s"
-  },
-  currEdit: null,
 })
 
 /**
@@ -64,9 +38,6 @@ const init = () => {
   existNodeData.dialogVisible = false
   existNodeData.coverNode = false
   existNodeData.hasSetCover = false
-  modifyNode.showEditor = false
-  modifyNode.style.listBoxWidth = 100
-  modifyNode.style.editBoxWidth = 0
 }
 
 /**
@@ -99,9 +70,14 @@ const handleFileChange = async (file: UploadFile, fileList: UploadFiles) => {
   saveFileNode()
 
   // 构建菜单
-  buildMenu()
+  nodeListRef.value.init(currFile)
 }
 
+/**
+ * 移除文件
+ * @param uploadFile
+ * @param uploadFiles
+ */
 const handleFileRemove = (uploadFile: UploadFile, uploadFiles: UploadFiles) => {
   init()
 }
@@ -162,33 +138,6 @@ const saveFileNode = () => {
   currFile.nodeList = nodeList
 }
 
-const buildMenu = (pageNum: number = 1) => {
-  const {nodeList, page} = currFile
-  if (!nodeList || nodeList.length < 1) {
-    return;
-  }
-
-  if (pageNum < 1) {
-    pageNum = 1
-  }
-
-  page.total = nodeList.length
-  page.pageCount = page.total / page.size
-
-  if (pageNum > page.pageCount) {
-    pageNum = page.pageCount
-  }
-
-  page.currPage = pageNum
-  const start: number = (pageNum - 1) * page.size
-  let end: number = start + page.size
-  if (end > page.total) {
-    end = page.total
-  }
-  currFile.menuList = nodeList.slice(start, end)
-}
-
-
 /**
  * 本地已存在节点，准备覆盖
  * @param cover
@@ -200,62 +149,6 @@ const coverNodeAndReload = (cover: boolean) => {
   // 继续导入
   saveFileNode()
 }
-
-/**
- * 点击某行
- * @param row
- * @param column
- * @param event
- */
-const handleNodeRowClick = (row: NodeInfo, column: string | number | undefined, event: PointerEvent) => {
-  if (!modifyNode.showEditor) {
-    showEdit()
-    modifyNode.currEdit = (row as any)
-  }
-}
-
-/**
- * 点击箭头展开
- */
-const handleExportNodeList = () => {
-  if (modifyNode.showEditor) {
-    showEdit()
-  }
-}
-
-const showEdit = () => {
-  const change = !modifyNode.showEditor
-  if (change) {
-    modifyNode.showEditor = change
-    modifyNode.style.listBoxWidth = 20
-    modifyNode.style.editBoxWidth = 80
-  } else {
-    modifyNode.style.listBoxWidth = 100
-    modifyNode.style.editBoxWidth = 0
-    setTimeout(() => {
-      modifyNode.showEditor = change
-    }, 400)
-  }
-}
-
-const leftWidth = computed(() => `${modifyNode.style.listBoxWidth}%`);
-const rightWidth = computed(() => `${modifyNode.style.editBoxWidth}%`);
-
-const nodePageData = computed(() => {
-  if (modifyNode.showEditor) {
-    return [{
-      prep: currFile.page.currPage - 1,
-      curr: currFile.page.currPage,
-      next: currFile.page.currPage + 1,
-    }]
-  } else {
-    return [{
-      prep: currFile.page.currPage - 1,
-      curr: currFile.page.currPage,
-      next: currFile.page.currPage + 1,
-    }]
-  }
-})
 
 defineExpose({
   init
@@ -309,65 +202,8 @@ defineExpose({
       </transition>
 
       <transition name="slide-left">
-        <div class="node-list-edit-box" v-if="currFile.nodeList">
-          <div class="node-list-box" :style="{ width: leftWidth }">
-            <div class="node-list">
-              <transition name="slide-left">
-                <div class="node-list-table">
-                  <el-table ref="tableNodeDataInfoRef"
-                            border highlight-current-row
-                            @row-click="handleNodeRowClick"
-                            :data="currFile.menuList" style="width: 100%">
-                    <el-table-column :resizable="false" type="index" show-overflow-tooltip width="50">
-                      <template #header>
-                      <span style="float: right" @click="handleExportNodeList">
-                        <el-icon
-                            :style="{transform: modifyNode.showEditor ?modifyNode.style.transform:'', transition:modifyNode.style.transition}">
-                          <CaretLeft/>
-                        </el-icon>
-                      </span>
-                      </template>
-                    </el-table-column>
-                    <el-table-column :resizable="false" prop="sourceName" show-overflow-tooltip label="节点名称">
-                      <template #header>
-                        <el-input v-model="currFile.nodeSearch" size="small" placeholder="搜索名称" clearable/>
-                      </template>
-                    </el-table-column>
-                    <el-table-column :resizable="false" prop="platform" label="节点平台" v-if="!modifyNode.showEditor"/>
-                    <el-table-column :resizable="false" prop="sourceType" label="节点类型"
-                                     v-if="!modifyNode.showEditor"/>
-                    <el-table-column :resizable="false" prop="authorId" label="作者" v-if="!modifyNode.showEditor"/>
-                    <el-table-column :resizable="false" prop="weight" label="权重" v-if="!modifyNode.showEditor"/>
-                    <el-table-column :resizable="false" prop="enable" label="启用" v-if="!modifyNode.showEditor"/>
-                  </el-table>
-
-                  <div class="node-list-page-tool">
-
-                    <el-pagination v-if="currFile.page.total > 10" layout="prev, pager, next"
-                                   :hide-on-single-page="true"
-                                   :total="currFile.page.total"
-                                   :page-count="currFile.page.pageCount"
-                                   :page-size="currFile.page.size"
-                                   :current-page="currFile.page.currPage"
-                                   @current-change="(v:number) => buildMenu(v)"/>
-                  </div>
-                </div>
-              </transition>
-            </div>
-            <div>
-              <el-table ref="tableNodePageRef" :data="nodePageData" style="width: 100%" :show-header="false">
-                <el-table-column prop="prep" label="文件名称"/>
-                <el-table-column prop="curr" label="文件类型"/>
-                <el-table-column prop="next" label="operation"></el-table-column>
-              </el-table>
-            </div>
-          </div>
-          <div class="node-edit-box" :style="{ width: rightWidth }">
-            23
-          </div>
-        </div>
+        <NodeList ref="nodeListRef" v-show="currFile.nodeList"></NodeList>
       </transition>
-
     </div>
   </div>
   <el-dialog
@@ -424,17 +260,6 @@ defineExpose({
         transition: width .5s ease; /* 添加过渡动画 */
       }
 
-      .node-list {
-        .node-list-table {
-          position: relative;
-
-          .node-list-page-tool {
-            position: absolute;
-            left: 1rem;
-            bottom: -30rem;
-          }
-        }
-      }
     }
   }
 }
