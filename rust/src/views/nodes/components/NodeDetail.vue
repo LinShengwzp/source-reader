@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import {NodeInfo} from "@/utils/Models";
 import {reactive} from "vue";
+import EditorArea from "@/components/EditorArea.vue";
+
+import DataEditor from "@/components/SvgIcon/DataEditor.vue";
 
 const props = defineProps({
   nodeInfo: {
@@ -13,7 +16,7 @@ interface NodeDetailInitData {
   node: NodeInfo,
 }
 
-const initData = reactive({
+const initData: NodeDetailInitData = reactive({
   node: {}
 })
 
@@ -33,6 +36,9 @@ const clean = () => {
 const submit = () => {
   console.log(initData.node, "curr node")
 }
+const handleInput = (e: any) => {
+  console.log(e, '23333', initData.node.sourceName)
+}
 
 defineExpose({
   init
@@ -43,11 +49,12 @@ defineExpose({
   <div class="node-detail-box">
     <el-form
         label-width="100px"
-        :model="initData.node"
-        style="max-width: 460px">
-      <el-form-item label="名称">
-        <el-input v-model="initData.node.sourceName" />
-      </el-form-item>
+        :model="initData.node">
+      <!--      <EditorArea name="sourceName" label="名称" :model-value="initData.node['sourceName']" type="string"-->
+      <!--                  :clearable="true"/>-->
+
+      <DataEditor v-model:model-value="initData.node.sourceName" name="名称" type="string" @input="handleInput"
+                  clearable/>
     </el-form>
   </div>
 </template>

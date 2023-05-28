@@ -33,7 +33,7 @@ const init = (node: NodeInfo) => {
     }
   }
   if (!hasNode) {
-    if (initData.nodeInfoList.length > 10) {
+    if (initData.nodeInfoList.length > 20) {
       ElNotification({
         title: '标签页过多',
         message: '别开太多标签',
@@ -108,7 +108,7 @@ defineExpose({
       </el-tab-pane>
     </el-tabs>
 
-    <NodeDetail v-show="initData.currNodeName" ref="nodeDetailRef"/>
+    <NodeDetail v-show="initData.nodeInfoList.length > 0 && initData.currNodeName" ref="nodeDetailRef"/>
   </div>
 </template>
 

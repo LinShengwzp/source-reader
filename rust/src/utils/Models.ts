@@ -119,6 +119,10 @@ export const SourceTemplate: SRNodeInfo = {
 //</editor-fold>
 
 //<editor-fold desc="公共interface">
+
+/**
+ * 底部菜单
+ */
 export interface MenuItem {
     id: number,
     icon: string,
@@ -126,6 +130,9 @@ export interface MenuItem {
     name: string
 }
 
+/**
+ * 节点操作功能
+ */
 export interface NodeOperate {
     id: number,
     name: string,
@@ -133,6 +140,9 @@ export interface NodeOperate {
     operate: Function
 }
 
+/**
+ * 节点信息
+ */
 export interface NodeInfo {
     id?: number,
     sourceName?: string,
@@ -148,12 +158,18 @@ export interface NodeInfo {
     enable?: number,
 }
 
+/**
+ * 字典
+ */
 export interface TypeInfo {
     name: string;
     label: string;
     default?: boolean;
 }
 
+/**
+ * 分页
+ */
 export interface PageInfo {
     total: number,
     size: number,
@@ -161,6 +177,9 @@ export interface PageInfo {
     currPage: number,
 }
 
+/**
+ * 打开文件
+ */
 export interface FileInfo {
     file?: File,
     fileType?: FileType,
@@ -170,6 +189,34 @@ export interface FileInfo {
     menuList?: Array<any>,
     nodeSearch?: string,
     page: PageInfo
+}
+
+/**
+ * 表单项
+ */
+export interface FormModelItem {
+    type: string,
+    label?: string,
+    modelValue?: string | number | boolean,
+    name?: string,
+    model?: string,
+    icon?: string,
+    placeholder?: string,
+    disabled?: boolean,
+    rules?: Array<any>,
+    options?: Array<TypeInfo>,
+    help?: string,
+}
+
+/**
+ * 表单组
+ */
+export interface FormGroupItem {
+    title: string,
+    action?: string,
+    tips?: string[],
+    items?: Array<FormModelItem>,
+    formGroups?: Array<FormGroupItem>
 }
 
 /**
