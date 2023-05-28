@@ -2,7 +2,9 @@
 import {FileInfo, findType, NodeInfo, NodeSourceType, SourcePlatform} from "@/utils/Models";
 import {computed, onBeforeUnmount, onMounted, reactive, ref} from "vue";
 import {ArrowLeft, ArrowRight, CaretLeft} from "@element-plus/icons-vue";
+import NodeModify from "@/views/nodes/components/NodeModify.vue";
 
+const nodeModifyRef = ref()
 const currFile: FileInfo = reactive({
   page: {
     total: 0,
@@ -21,6 +23,13 @@ const modifyNode = reactive({
   },
   currEdit: null,
 })
+const tooltipOptions = reactive({
+  enterable: true,
+  placement: 'right',
+  showArrow: true,
+  hideAfter: 200,
+  popperOptions: {strategy: 'fixed'}
+})
 
 onMounted(() => {
   window.addEventListener('resize', handleResize);
@@ -30,8 +39,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
 });
 
-
 const init = (fileInfo: FileInfo) => {
+  nodeModifyRef.value.clean()
   currFile.file = fileInfo.file
   currFile.fileType = fileInfo.fileType
   currFile.analyseNode = fileInfo.analyseNode
@@ -63,7 +72,6 @@ const showEdit = () => {
     }, 400)
   }
 }
-
 
 /**
  * build 菜单
@@ -103,7 +111,6 @@ const buildMenu = (pageNum: number = 1) => {
     end = page.total
   }
   currFile.menuList = filer.slice(start, end)
-  console.log("build menu", currFile)
 }
 
 /**
@@ -114,9 +121,10 @@ const buildMenu = (pageNum: number = 1) => {
  */
 const handleNodeRowClick = (row: NodeInfo, column: string | number | undefined, event: PointerEvent) => {
   if (!modifyNode.showEditor) {
-    showEdit()
     modifyNode.currEdit = (row as any)
+    showEdit()
   }
+  nodeModifyRef.value.init(row)
 }
 
 /**
@@ -166,17 +174,19 @@ defineExpose({
           <transition name="slide-left">
             <div class="node-list-table">
               <el-table ref="tableNodeDataInfoRef"
-                        border highlight-current-row
+                        highlight-current-row
+                        tooltip-effect="light"
+                        :tooltip-options="tooltipOptions"
                         @row-click="handleNodeRowClick"
                         :data="currFile.menuList" style="width: 100%">
                 <el-table-column :resizable="false" type="index" show-overflow-tooltip width="50">
                   <template #header>
-                                <span style="float: right" @click="handleExportNodeList">
-                                  <el-icon
-                                      :style="{transform: modifyNode.showEditor ?modifyNode.style.transform:'', transition:modifyNode.style.transition}">
-                                    <CaretLeft/>
-                                  </el-icon>
-                                </span>
+                      <span style="float: right" @click="handleExportNodeList">
+                        <el-icon
+                            :style="{transform: modifyNode.showEditor ?modifyNode.style.transform:'', transition:modifyNode.style.transition}">
+                          <CaretLeft/>
+                        </el-icon>
+                      </span>
                   </template>
                 </el-table-column>
                 <el-table-column :resizable="false" prop="sourceName" show-overflow-tooltip label="节点名称">
@@ -255,7 +265,7 @@ defineExpose({
       </div>
 
       <div class="node-edit-box" :style="{ width: rightWidth }">
-        23
+        <NodeModify ref="nodeModifyRef"/>
       </div>
     </div>
   </div>

@@ -12,5 +12,5 @@ npm run encrypt
 echo '======== build win ========'
 # win
 npm run build-wz-64
-npm run build-wz-32
+#npm run build-wz-32
 

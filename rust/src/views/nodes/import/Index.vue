@@ -130,7 +130,7 @@ const saveFileNode = () => {
       toTop: node['toTop'],
     }
 
-    // 存储到数据库
+    // 存储到数据库，这一步等点击编辑再存储
 
     // 放到菜单
     nodeList.push(item)
