@@ -191,14 +191,17 @@ defineExpose({
       </transition>
 
       <div class="show-tool-btn">
-        <el-affix :offset="120">
+        <el-tooltip
+            class="btn-tooltip"
+            effect="light"
+            content="工具">
           <el-link :underline="false" @click="initData.showTool = !initData.showTool">
             <el-icon
                 :style="{transform: initData.showTool ?style.transTool.transform:'', transition:style.transTool.transition}">
               <DArrowLeft/>
             </el-icon>
           </el-link>
-        </el-affix>
+        </el-tooltip>
       </div>
     </div>
 
@@ -245,7 +248,7 @@ defineExpose({
     .show-tool-btn {
       position: absolute;
       right: 0;
-      top: 0.5rem;
+      top: 0;
     }
   }
 

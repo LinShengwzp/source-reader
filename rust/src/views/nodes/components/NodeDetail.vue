@@ -6,7 +6,8 @@ import DataEditor from "@/components/DataEditor.vue";
 import {detailForm, groupFrom, modifyFromItem, moreForm} from "@/views/nodes/components/ModifyFormModel";
 import {timeTools} from "@/utils/xbsTool/xbsTools";
 import {stringifyJson} from "@/utils/Strutil";
-import {ArrowLeftBold, CloseBold, Select} from "@element-plus/icons-vue";
+import {ArrowLeftBold, CloseBold, Edit, Select} from "@element-plus/icons-vue";
+import SvgIcon from "@/components/SvgIcon/Index.vue";
 
 const props = defineProps({
   nodeInfo: {
@@ -163,60 +164,117 @@ defineExpose({
   <div class="node-detail" v-if="initData.node">
     <transition name="fade">
       <div class="node-detail-box" v-show="!initData.modifyItem">
-        <el-form ref="nodeInfoFormRef"
-                 label-width="20%"
-                 :model="initData.nodeJson">
-          <el-divider content-position="left">基础信息</el-divider>
 
-          <DataEditor v-for="item in modifyFromItem"
-                      :type="item.type"
-                      :label="item.label"
-                      :name="item.model"
-                      :help="item.help"
-                      :placeholder="item.placeholder"
-                      :options="item.options"
-                      v-model:model-value="initData.nodeJson[item.model]"
-                      @input="handleInput"
-                      @onChange="handleChange"
-                      @onForce="handleForce(item)"
-                      clearable/>
+        <el-row class="header-tool-box">
+          <el-col :span="2">
+            <el-link style="height: 20px" :underline="false" @click="">
+              <el-icon>
+                <Edit/>
+              </el-icon>
+            </el-link>
+          </el-col>
+          <el-col :span="10" style="text-align: left">
+            编辑节点
+          </el-col>
 
-          <el-row>
-            <el-col :span="10">
-              <el-divider content-position="center">常用配置</el-divider>
+          <el-col :span="1" :offset="8" style="display: flex;justify-content: center;">
+            <el-tooltip
+                class="btn-tooltip"
+                effect="light"
+                content="导出">
+              <el-link style="height: 20px" :underline="false" @click="">
+                <svg-icon class="menu-icon" icon="export"/>
+              </el-link>
+            </el-tooltip>
+          </el-col>
+          <el-col :span="1">
+            <el-tooltip
+                class="btn-tooltip"
+                effect="light"
+                content="保存">
+              <el-link :underline="false" @click="">
+                <el-icon>
+                  <Select/>
+                </el-icon>
+              </el-link>
+            </el-tooltip>
+          </el-col>
 
-              <el-form-item label-width="100px" v-for="itemKey in Object.keys(detailForm as any)"
-                            :key="itemKey"
-                            :label="detailForm[itemKey].title">
-                <el-button v-if="hasConfigBtn(itemKey)" type="success" @click="modifyDetailItem('detailForm', itemKey)">
-                  已配置
-                </el-button>
-                <el-button v-else @click="modifyDetailItem('detailForm', itemKey)">未配置</el-button>
-              </el-form-item>
+          <el-col :span="1">
+            <el-tooltip
+                class="btn-tooltip"
+                effect="light"
+                content="取消">
+              <el-link :underline="false" @click="">
+                <el-icon>
+                  <CloseBold/>
+                </el-icon>
+              </el-link>
+            </el-tooltip>
+          </el-col>
+        </el-row>
 
-            </el-col>
-            <el-col :span="10" :offset="1">
-              <el-divider content-position="center">更多配置</el-divider>
+        <div class="modify-box">
+          <el-form ref="nodeInfoFormRef"
+                   label-width="20%"
+                   :model="initData.nodeJson">
 
-              <el-form-item label-width="100px" v-for="itemKey in Object.keys(moreForm as any)"
-                            @click="modifyDetailItem('moreForm', itemKey)"
-                            :label="moreForm[itemKey].title">
-                <el-button v-if="hasConfigBtn(itemKey)"
-                           @click="modifyDetailItem('moreForm', itemKey)"
-                           type="success">已配置
-                </el-button>
-                <el-button v-else>未配置</el-button>
-              </el-form-item>
-            </el-col>
+            <el-divider content-position="left">基础信息</el-divider>
 
-          </el-row>
-        </el-form>
+            <DataEditor v-for="item in modifyFromItem"
+                        :type="item.type"
+                        :label="item.label"
+                        :name="item.model"
+                        :help="item.help"
+                        :placeholder="item.placeholder"
+                        :options="item.options"
+                        v-model:model-value="initData.nodeJson[item.model]"
+                        @input="handleInput"
+                        @onChange="handleChange"
+                        @onForce="handleForce(item)"
+                        clearable/>
+
+            <el-row>
+              <el-col :span="10">
+                <el-divider content-position="center">常用配置</el-divider>
+                <div class="config-btn-group">
+                  <el-form-item label-width="100px" v-for="itemKey in Object.keys(detailForm as any)"
+                                :key="itemKey"
+                                :label="detailForm[itemKey].title">
+                    <el-button v-if="hasConfigBtn(itemKey)" type="success"
+                               @click="modifyDetailItem('detailForm', itemKey)">
+                      已配置
+                    </el-button>
+                    <el-button v-else @click="modifyDetailItem('detailForm', itemKey)">未配置</el-button>
+                  </el-form-item>
+                </div>
+
+              </el-col>
+              <el-col :span="10" :offset="1">
+                <el-divider content-position="center">更多配置</el-divider>
+                <div class="config-btn-group">
+                  <el-form-item label-width="100px" v-for="itemKey in Object.keys(moreForm as any)"
+                                @click="modifyDetailItem('moreForm', itemKey)"
+                                :label="moreForm[itemKey].title">
+                    <el-button v-if="hasConfigBtn(itemKey)"
+                               @click="modifyDetailItem('moreForm', itemKey)"
+                               type="success">已配置
+                    </el-button>
+                    <el-button v-else>未配置</el-button>
+                  </el-form-item>
+                </div>
+              </el-col>
+
+            </el-row>
+          </el-form>
+        </div>
+
       </div>
     </transition>
 
     <transition name="fade">
       <div class="node-detail-item-box" v-show="initData.modifyItem">
-        <el-row>
+        <el-row class="header-tool-box">
           <el-col :span="2">
             <el-link :underline="false" @click="detailBackAndSave(false)">
               <el-icon>
@@ -229,19 +287,29 @@ defineExpose({
           </el-col>
 
           <el-col :span="1" :offset="7">
-            <el-link :underline="false" @click="detailBackAndSave">
-              <el-icon>
-                <Select/>
-              </el-icon>
-            </el-link>
+            <el-tooltip
+                class="btn-tooltip"
+                effect="light"
+                content="保存">
+              <el-link :underline="false" @click="detailBackAndSave">
+                <el-icon>
+                  <Select/>
+                </el-icon>
+              </el-link>
+            </el-tooltip>
           </el-col>
 
           <el-col :span="1">
-            <el-link :underline="false" @click="detailBackAndSave(false)">
-              <el-icon>
-                <CloseBold/>
-              </el-icon>
-            </el-link>
+            <el-tooltip
+                class="btn-tooltip"
+                effect="light"
+                content="取消">
+              <el-link :underline="false" @click="detailBackAndSave(false)">
+                <el-icon>
+                  <CloseBold/>
+                </el-icon>
+              </el-link>
+            </el-tooltip>
           </el-col>
         </el-row>
 
@@ -300,6 +368,36 @@ defineExpose({
 
   .node-detail-box {
     flex: 1;
+
+    .header-tool-box {
+      height: 2rem;
+      line-height: 2rem;
+    }
+
+    .modify-box {
+      height: 90%;
+      overflow: scroll;
+    }
+
+    .config-btn-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .menu-icon {
+      height: 16px;
+      width: 16px;
+
+      ::v-deep {
+        svg {
+          width: 100% !important;
+          height: 100% !important;
+        }
+      }
+    }
+
+
   }
 
   .node-detail-item-box {
@@ -307,8 +405,9 @@ defineExpose({
 
     .detail-form-box {
       overflow: scroll;
-      height: 95%;
+      height: 90%;
     }
   }
 }
+
 </style>
