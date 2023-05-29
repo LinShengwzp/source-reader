@@ -77,6 +77,11 @@ const init = (node: NodeInfo) => {
   submit()
 }
 
+/**
+ * 外部修改
+ * @param item
+ * @param value
+ */
 const changeValue = (item: FormModelItem, value: any) => {
   if (initData.modifyItem) {
     if (initData.modifyGroupFormType && initData.modifyGroupTabName) {
@@ -90,7 +95,11 @@ const changeValue = (item: FormModelItem, value: any) => {
   }
 }
 
+/**
+ * 清空面板
+ */
 const clean = () => {
+  // TODO 清空之前先判断是不是有数据，有数据先存储防止丢失
   initData.node = {}
   initData.nodeJson = {
     sourceName: '',
@@ -203,6 +212,14 @@ const handleGroupTabsEdit = (targetName: TabPaneName | undefined,
                              action: 'remove' | 'add') => {
 
 }
+
+/**
+ * 分组标签切换
+ * @param name
+ */
+const handleGroupTabsChange = (name: TabPaneName) => {
+}
+
 const handleInput = (item: FormModelItem) => {
   let commitData = undefined
   if (initData.modifyItem) {
@@ -429,45 +446,46 @@ defineExpose({
                 type="card"
                 editable
                 class="demo-tabs"
+                @tabChange="handleGroupTabsChange"
                 @edit="handleGroupTabsEdit">
               <el-tab-pane
                   v-for="tabName in Object.keys(initData.nodeJson[initData.modifyItem])"
                   :key="tabName" :label="tabName" :name="tabName">
-
-                <el-form
-                    ref="groupInfoFrom"
-                    label-width="100px"
-                    :model="initData.nodeJson[initData.modifyItem][tabName]">
-
-                  <div v-for="group in initData.modifyItemForm.formGroups" :key="group.title">
-                    <el-divider content-position="left">{{ group.title }}</el-divider>
-
-                    <div class="detail-tips">
-                      <ul>
-                        <li class="detail-tip" v-for="tip in group.tips">
-                          {{ tip }}
-                        </li>
-                      </ul>
-                    </div>
-
-                    <DataEditor v-for="item in group.items"
-                                :type="item.type"
-                                :label="item.label"
-                                :name="item.model"
-                                :help="item.help"
-                                :placeholder="item.placeholder"
-                                :options="item.options"
-                                v-model:model-value="initData.nodeJson[initData.modifyItem][tabName][item.model]"
-                                @input="handleInput(item)"
-                                @onChange="handleChange"
-                                @onForce="handleForce(item)"
-                                clearable/>
-                  </div>
-
-                </el-form>
-
               </el-tab-pane>
             </el-tabs>
+
+            <el-form v-if="initData.modifyGroupTabName"
+                     ref="groupInfoFrom"
+                     label-width="100px"
+                     :model="initData.nodeJson[initData.modifyItem][initData.modifyGroupTabName]">
+
+              <div v-for="group in initData.modifyItemForm.formGroups" :key="group.title">
+                <el-divider content-position="left">{{ group.title }}</el-divider>
+
+                <div class="detail-tips">
+                  <ul>
+                    <li class="detail-tip" v-for="tip in group.tips">
+                      {{ tip }}
+                    </li>
+                  </ul>
+                </div>
+
+                <DataEditor v-for="item in group.items"
+                            :type="item.type"
+                            :label="item.label"
+                            :name="item.model"
+                            :help="item.help"
+                            :placeholder="item.placeholder"
+                            :options="item.options"
+                            v-model:model-value="initData.nodeJson[initData.modifyItem][initData.modifyGroupTabName][item.model]"
+                            @input="handleInput(item)"
+                            @onChange="handleChange"
+                            @onForce="handleForce(item)"
+                            clearable/>
+              </div>
+
+            </el-form>
+
           </div>
         </div>
       </div>
