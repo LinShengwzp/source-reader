@@ -32,7 +32,6 @@ const init = (node: NodeInfo) => {
   clean()
   initData.node = node
 
-
   // 处理json
   const {sourceName, sourceJson} = initData.node
   if (!sourceJson || !sourceName) {
@@ -64,6 +63,10 @@ const init = (node: NodeInfo) => {
 
 
   submit()
+}
+
+const changeValue = (item: FormModelItem, value: any) => {
+  (initData.nodeJson as any)[item.model] = value
 }
 
 const clean = () => {
@@ -106,7 +109,7 @@ const handleForce = (item: FormModelItem) => {
 }
 
 defineExpose({
-  init
+  init, changeValue
 })
 </script>
 

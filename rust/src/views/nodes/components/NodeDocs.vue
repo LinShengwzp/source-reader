@@ -296,5 +296,6 @@ queryWithXPath(strXPath); // 返回查询结果，以数组保存
 .node-doc-box {
   text-align: left;
   overflow: scroll;
+  user-select: text;
 }
 </style>

@@ -12,6 +12,7 @@ interface NodeModifyInitData {
   currNode: number,
   currNodeName: string,
   activeToolName: string,
+  forceItem?: FormModelItem
 }
 
 const nodeDetailRef = ref()
@@ -98,10 +99,17 @@ const handleNodeTabRemove = (targetName: string) => {
 }
 
 const handleFormItemForce = (item: FormModelItem, value: any) => {
+  initData.forceItem = item
   if (item.type === 'text') {
     initData.activeToolName = 'code'
     codeEditorRef.value.init(value)
+  } else {
+    initData.activeToolName = 'docs'
   }
+}
+
+const handleCodeEditorValueChange = (code: string) => {
+  nodeDetailRef.value.changeValue(initData.forceItem, code)
 }
 
 /**
@@ -140,37 +148,37 @@ defineExpose({
       </el-tab-pane>
     </el-tabs>
 
-    <div class="modify-box" :style="{height: `${screenHeight - ((screenHeight/10) + 200)}px`}">
+    <div class="modify-box" :style="{height: `${screenHeight - ((screenHeight/10) + 200)}px`}"
+         v-show="initData.nodeInfoList.length > 0 && initData.currNodeName">
       <div class="node-modify">
-        <NodeDetail v-show="initData.nodeInfoList.length > 0 && initData.currNodeName"
-                    @itemForce="handleFormItemForce"
+        <NodeDetail @itemForce="handleFormItemForce"
                     ref="nodeDetailRef"/>
       </div>
 
-      <div class="modify-tool" ref="modifyToolRef"
-           v-show="initData.nodeInfoList.length > 0 && initData.currNodeName">
+      <div class="modify-tool" ref="modifyToolRef">
 
-        <el-tabs
-            v-model="initData.activeToolName"
-            type="card"
-            class="tool-tabs">
+        <el-tabs v-model="initData.activeToolName"
+                 type="card"
+                 class="tool-tabs">
           <el-tab-pane label="文档" name="docs">
-            <NodeDocs />
+            <NodeDocs/>
           </el-tab-pane>
           <el-tab-pane label="代码编辑器" name="code">
-            <CodeEditor ref="codeEditorRef"></CodeEditor>
+            <CodeEditor ref="codeEditorRef" @change="handleCodeEditorValueChange"></CodeEditor>
           </el-tab-pane>
           <el-tab-pane label="分类工具" name="cat">
             <div class="iframe-box">
               <iframe class="iframe-item" src="https://bigfantu.gitee.io/xsread/"></iframe>
             </div>
           </el-tab-pane>
-          <el-tab-pane label="Task" name="fourth">Task</el-tab-pane>
+          <el-tab-pane label="测试" name="fourth">Task</el-tab-pane>
         </el-tabs>
       </div>
     </div>
 
   </div>
+
+
 </template>
 
 <style scoped lang="scss">

@@ -1,9 +1,11 @@
 <template>
   <codemirror v-model="code"
-              placeholder="Code gose here..."
+              placeholder="代码编辑器"
               :style="{ height: '100%',textAlign:'left' }"
               :autofocus="true"
-              :tabSize="21"
+              :tabSize="4"
+              :options="codeMirrorOptions"
+              @change="Change"
               :extensions="extensions"/>
 </template>
 <script lang="ts" setup>
@@ -51,14 +53,20 @@ interface IProps {
   height?: string,
 }
 
+const codeMirrorOptions = {}
+
 // 接受的参数
 const props = withDefaults(defineProps<IProps>(), {
   height: '400px',
 })
 const code = ref('');
 const extensions = [javascript(), myTheme];
-const Change = () => {
 
+const emits = defineEmits(['change'])
+
+const Change = (v: string) => {
+  code.value = v
+  emits("change", v)
 }
 
 const init = (codeStr: string) => {
