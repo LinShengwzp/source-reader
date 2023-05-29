@@ -248,7 +248,7 @@ defineExpose({
     .show-tool-btn {
       position: absolute;
       right: 0;
-      top: 0;
+      top: 0.3rem;
     }
   }
 

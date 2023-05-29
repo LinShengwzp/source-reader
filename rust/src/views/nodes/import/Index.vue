@@ -60,7 +60,8 @@ const handleFileChange = async (file: UploadFile, fileList: UploadFiles) => {
   currFile.dataInfo = [{
     fileName: file.name,
     filePath: file.name,
-    fileType: currFile.fileType ? "JSON" : "XBS"
+    nodeCount: 0,
+    fileType: currFile.fileType ? "JSON 文件" : "XBS 文件"
   }]
 
   // 解析文件
@@ -135,6 +136,7 @@ const saveFileNode = () => {
     // 放到菜单
     nodeList.push(item)
   }
+  (currFile.dataInfo as any)[0].nodeCount = nodeList.length
   currFile.nodeList = nodeList
 }
 
@@ -190,10 +192,17 @@ defineExpose({
           <el-table ref="tableFileDataInfoRef" :data="currFile.dataInfo" style="width: 100%" :show-header="false">
             <el-table-column prop="fileName" label="文件名称"/>
             <el-table-column prop="fileType" label="文件类型"/>
-            <el-table-column prop="fileName" label="operation" width="60">
+            <el-table-column prop="nodeCount" label="节点个数">
+              <template #default="scope">
+                {{ scope.row.nodeCount }} 个节点
+              </template>
+            </el-table-column>
+            <el-table-column prop="fileName" label="operation" width="260">
               <template #default="scope">
                 <div class="select-file-del">
-                  <el-link type="danger" href="#" @click="handleFileRemove">移除</el-link>
+                  <el-link class="operator-link-btn" type="primary" href="#" @click="">全部保存</el-link>
+                  <el-link class="operator-link-btn" type="success" href="#" @click="">全部导出</el-link>
+                  <el-link class="operator-link-btn" type="danger" href="#" @click="handleFileRemove">移除</el-link>
                 </div>
               </template>
             </el-table-column>
@@ -245,7 +254,9 @@ defineExpose({
       }
 
       .select-file-del {
-
+        .operator-link-btn {
+          margin-left: 1rem;
+        }
       }
     }
 
