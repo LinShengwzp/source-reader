@@ -6,6 +6,7 @@ import {ElNotification, TabsPaneContext} from "element-plus";
 import NodeDetail from "@/views/nodes/components/NodeDetail.vue";
 import CodeEditor from "@/components/CodeEditor.vue";
 import NodeDocs from "@/views/nodes/components/NodeDocs.vue";
+import {DArrowLeft} from "@element-plus/icons-vue";
 
 interface NodeModifyInitData {
   nodeInfoList: NodeInfo[],
@@ -13,6 +14,7 @@ interface NodeModifyInitData {
   currNodeName: string,
   activeToolName: string,
   forceItem?: FormModelItem
+  showTool: boolean,
 }
 
 const nodeDetailRef = ref()
@@ -23,14 +25,24 @@ const initData: NodeModifyInitData = reactive({
   currNode: 0,
   currNodeName: '',
   activeToolName: 'docs',
+  showTool: true,
+})
+
+const style = reactive({
+  transTool: {
+    transform: "rotate(180deg)",
+    transition: "all .3s"
+  }
 })
 
 
 onMounted(() => {
+  handleResize()
   window.addEventListener('resize', handleResize);
 });
 
 onBeforeUnmount(() => {
+  handleResize()
   window.removeEventListener('resize', handleResize);
 });
 
@@ -128,6 +140,7 @@ const screenWidth = ref(window.innerWidth);
 const handleResize = () => {
   screenHeight.value = window.innerHeight;
   screenWidth.value = window.innerWidth;
+  initData.showTool = screenWidth.value >= 1200;
 };
 
 defineExpose({
@@ -155,30 +168,41 @@ defineExpose({
                     ref="nodeDetailRef"/>
       </div>
 
-      <div class="modify-tool" ref="modifyToolRef">
+      <transition name="fade">
+        <div class="modify-tool" ref="modifyToolRef" v-show="initData.showTool">
 
-        <el-tabs v-model="initData.activeToolName"
-                 type="card"
-                 class="tool-tabs">
-          <el-tab-pane label="文档" name="docs">
-            <NodeDocs/>
-          </el-tab-pane>
-          <el-tab-pane label="代码编辑器" name="code">
-            <CodeEditor ref="codeEditorRef" @change="handleCodeEditorValueChange"></CodeEditor>
-          </el-tab-pane>
-          <el-tab-pane label="分类工具" name="cat">
-            <div class="iframe-box">
-              <iframe class="iframe-item" src="https://bigfantu.gitee.io/xsread/"></iframe>
-            </div>
-          </el-tab-pane>
-          <el-tab-pane label="测试" name="fourth">Task</el-tab-pane>
-        </el-tabs>
+          <el-tabs v-model="initData.activeToolName"
+                   type="card"
+                   class="tool-tabs">
+            <el-tab-pane label="文档" name="docs">
+              <NodeDocs/>
+            </el-tab-pane>
+            <el-tab-pane label="代码编辑器" name="code">
+              <CodeEditor ref="codeEditorRef" @change="handleCodeEditorValueChange"></CodeEditor>
+            </el-tab-pane>
+            <el-tab-pane label="分类工具" name="cat">
+              <div class="iframe-box">
+                <iframe class="iframe-item" src="https://bigfantu.gitee.io/xsread/"></iframe>
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="测试" name="fourth">Task</el-tab-pane>
+          </el-tabs>
+        </div>
+      </transition>
+
+      <div class="show-tool-btn">
+        <el-affix :offset="120">
+          <el-link :underline="false" @click="initData.showTool = !initData.showTool">
+            <el-icon
+                :style="{transform: initData.showTool ?style.transTool.transform:'', transition:style.transTool.transition}">
+              <DArrowLeft/>
+            </el-icon>
+          </el-link>
+        </el-affix>
       </div>
     </div>
 
   </div>
-
-
 </template>
 
 <style scoped lang="scss">
@@ -189,6 +213,7 @@ defineExpose({
 
   .modify-box {
     display: flex;
+    position: relative;
 
     .node-modify {
       flex: 1;
@@ -215,6 +240,12 @@ defineExpose({
           border: none;
         }
       }
+    }
+
+    .show-tool-btn {
+      position: absolute;
+      right: 0;
+      top: 0.5rem;
     }
   }
 

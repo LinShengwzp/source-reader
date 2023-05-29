@@ -23,6 +23,16 @@
     opacity: 0;
 }
 
+.slide-left-enter-active,
+.slide-left-leave-active {
+    transition: transform 0.5s;
+}
+
+.slide-left-enter-from,
+.slide-left-leave-to {
+    transform: translateX(-100%);
+}
+
 /* 悬浮动画 */
 /* Grow-Shadow 放大-阴影 https://blog.csdn.net/weixin_62650212/article/details/123912722 */
 .hvr-grow-shadow {

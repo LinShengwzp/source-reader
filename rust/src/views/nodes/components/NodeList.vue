@@ -32,10 +32,12 @@ const tooltipOptions = reactive({
 })
 
 onMounted(() => {
+  handleResize()
   window.addEventListener('resize', handleResize);
 });
 
 onBeforeUnmount(() => {
+  handleResize()
   window.removeEventListener('resize', handleResize);
 });
 

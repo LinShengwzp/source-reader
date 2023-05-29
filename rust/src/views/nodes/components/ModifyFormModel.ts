@@ -576,7 +576,7 @@ export const modifyFromItem: Array<FormModelItem> = [sourceName, sourceUrl, pass
             }, ...item
         }
     }).filter(i => i);
-export const detailForm: Object = {
+export const detailForm: any = {
     searchBook: searchBook,
     bookDetail: bookDetail,
     chapterList: chapterList,
@@ -584,7 +584,7 @@ export const detailForm: Object = {
     bookWorld: bookWorld,
 }
 
-export const moreForm: Object = {
+export const moreForm: any = {
     searchShudan: searchShudan,
     shudanDetail: shudanDetail,
     shupingList: shupingList,
@@ -593,7 +593,4 @@ export const moreForm: Object = {
     shudanList: shudanList,
 }
 
-export const groupFrom = {
-    bookWorld: bookWorld,
-    shudanList: shudanList,
-}
+export const groupFrom: Array<string> = ['bookWorld', 'shudanList',]
