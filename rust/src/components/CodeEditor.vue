@@ -1,0 +1,72 @@
+<template>
+  <codemirror v-model="code"
+              placeholder="Code gose here..."
+              :style="{ height: '100%',textAlign:'left' }"
+              :autofocus="true"
+              :tabSize="21"
+              :extensions="extensions"/>
+</template>
+<script lang="ts" setup>
+import {Codemirror} from "vue-codemirror";
+import {javascript} from "@codemirror/lang-javascript";
+import {oneDark} from "@codemirror/theme-one-dark";
+import {ref} from "vue";
+import {EditorView} from "@codemirror/view"
+
+let myTheme = EditorView.theme({
+  // 输入的字体颜色
+  "&": {
+    color: "#0052D9",
+    backgroundColor: "#FFFFFF"
+  },
+  ".cm-content": {
+    caretColor: "#0052D9",
+  },
+  // 激活背景色
+  ".cm-activeLine": {
+    backgroundColor: "#FAFAFA"
+  },
+  // 激活序列的背景色
+  ".cm-activeLineGutter": {
+    backgroundColor: "#FAFAFA"
+  },
+  //光标的颜色
+  "&.cm-focused .cm-cursor": {
+    borderLeftColor: "#0052D9"
+  },
+  // 选中的状态
+  "&.cm-focused .cm-selectionBackground, ::selection": {
+    backgroundColor: "#0052D9",
+    color: '#c4c4c4'
+  },
+  // 左侧侧边栏的颜色
+  ".cm-gutters": {
+    backgroundColor: "#FFFFFF",
+    color: "#ddd", //侧边栏文字颜色
+    border: "none"
+  }
+}, {dark: true})
+
+interface IProps {
+  height?: string,
+}
+
+// 接受的参数
+const props = withDefaults(defineProps<IProps>(), {
+  height: '400px',
+})
+const code = ref('');
+const extensions = [javascript(), myTheme];
+const Change = () => {
+
+}
+
+const init = (codeStr: string) => {
+  code.value = codeStr
+}
+
+defineExpose({
+  init
+})
+
+</script>

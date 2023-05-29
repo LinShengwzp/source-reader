@@ -59,11 +59,13 @@ const lastModifyTime: FormModelItem = {
 
 const actionId: FormModelItem = {
     type: 'string',
+    label: 'string',
     model: 'actionID',
     disabled: true
 };
 const parserId: FormModelItem = {
     type: 'string',
+    label: 'string',
     model: 'parserID',
     disabled: true
 };
@@ -107,6 +109,7 @@ sourceRegex: 字符串正则表达式，嗅探资源url
 };
 const host: FormModelItem = {
     type: 'text',
+    label: 'text',
     model: 'host',
     placeholder: '请输入请求地址',
     help: ``
@@ -331,6 +334,7 @@ skipCount:列表数据忽略数量，类似于xpath position()>6，但数量小�
 const validConfig: FormModelItem = {
     type: 'text',
     model: 'validConfig',
+    label: '配置校验',
     help: ``
 };
 const sIndex: FormModelItem = {
@@ -339,7 +343,6 @@ const sIndex: FormModelItem = {
     label: '排序',
     placeholder: '排序',
 }
-
 
 const searchBook: FormGroupItem = {
     title: '书籍搜索',
@@ -559,18 +562,7 @@ const shudanList: FormGroupItem = {
     ]
 };
 
-const modifyFromItem: Array<FormModelItem> = [sourceName, sourceUrl, password, weight, sourceType, desc, loginUrl, httpHeaders, lastModifyTime, enable]
-    .filter(item => {
-        if (!item.model) {
-            return false
-        }
-
-        if (item.type === 'select') {
-            if (!item.options || item.options.length <= 0) {
-                return false
-            }
-        }
-    })
+export const modifyFromItem: Array<FormModelItem> = [sourceName, sourceUrl, password, weight, sourceType, desc, loginUrl, httpHeaders, lastModifyTime, enable]
     .map(item => {
         return {
             ...{
@@ -584,19 +576,24 @@ const modifyFromItem: Array<FormModelItem> = [sourceName, sourceUrl, password, w
             }, ...item
         }
     }).filter(i => i);
-const detailForm = {
+export const detailForm: Object = {
     searchBook: searchBook,
     bookDetail: bookDetail,
     chapterList: chapterList,
     chapterContent: chapterContent,
+    bookWorld: bookWorld,
+}
 
+export const moreForm: Object = {
     searchShudan: searchShudan,
     shudanDetail: shudanDetail,
     shupingList: shupingList,
     shupingHome: shupingHome,
     relatedWord: relatedWord,
+    shudanList: shudanList,
 }
-const groupFrom = {
+
+export const groupFrom = {
     bookWorld: bookWorld,
     shudanList: shudanList,
 }

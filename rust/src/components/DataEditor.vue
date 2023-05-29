@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 import {computed, ref, watch} from "vue";
-import {TypeInfo} from "@/utils/Models";
+import {NodeSourceType, TypeInfo} from "@/utils/Models";
 import {QuestionFilled} from "@element-plus/icons-vue";
 
 const props = defineProps({
@@ -53,17 +53,25 @@ const props = defineProps({
     type: String,
     required: false,
     default: ''
+  },
+  handle: {
+    type: Function,
+    required: false,
+    default: (v: any) => v
+  },
+  callback: {
+    type: Function,
+    required: false,
+    default: (v: any) => v
   }
 })
 
-const emits = defineEmits(["input", "update:modelValue", "onChange"])
+const emits = defineEmits(["input", "update:modelValue", "onChange", 'onBlur', 'onForce'])
 
 const internalValue = ref(props.modelValue);
 
-
 const labelValue = computed(
     () => {
-      console.log(props.label, props.name)
       return props.label || props.name
     }
 )
@@ -86,36 +94,74 @@ const handleChange = (e: any) => {
   emits('onChange', e); // 触发自定义的 change 事件
 }
 
+const handleBlue = (e: any) => {
+  emits('onBlur', e)
+}
+
+const handleForce = (e: any) => {
+  emits('onForce', e)
+}
+
 </script>
 
 <template>
   <el-form-item :label="labelValue" :prop="name" :rules="rules">
     <el-row style="width: 100%">
-      <el-col :span="20">
+      <el-col :span="20" style="text-align: left">
 
         <el-input type="textarea" style="width: 100%"
                   v-if="type === 'text'" v-bind="$attrs"
                   :placeholder="placeholder"
-                  :disabled="disabled"
+                  :disabled="disabled" @focus="handleForce" @blur="handleBlue"
                   v-model="internalValue" @input="handleInput"/>
 
         <el-input v-if="type === 'string'" v-bind="$attrs"
                   v-model="internalValue" @input="handleInput"
-                  :disabled="disabled"
+                  :disabled="disabled" @focus="handleForce" @blur="handleBlue"
                   :placeholder="placeholder"/>
+
+        <el-input-number v-if="type === 'number'"
+                         v-bind="$attrs" style="width: 100%;"
+                         v-model="internalValue" @input="handleInput"
+                         :disabled="disabled"
+                         :max="9999" :min="1" @focus="handleForce" @blur="handleBlue"
+                         :placeholder="placeholder"/>
+
+        <el-select v-if="type === 'select'"
+                   v-bind="$attrs"
+                   :placeholder="placeholder" @focus="handleForce" @blur="handleBlue"
+                   :disabled="disabled" style="width: 100%;"
+                   v-model="internalValue" @change="handleChange">
+          <el-option
+              v-for="item in options"
+              :key="item.name"
+              :label="item.label"
+              :value="item.name"/>
+        </el-select>
+
+        <el-switch v-if="type === 'switch'"
+                   v-bind="$attrs"
+                   :disabled="disabled"
+                   v-model="internalValue"
+                   @focus="handleForce" @blur="handleBlue"
+                   @change="handleChange"/>
+
       </el-col>
 
       <el-col :span="1" :offset="1" v-show="help">
         <el-popover
-            placement="top-end"
+            placement="left-end"
             :title="label"
-            trigger="hover">
+            width="500"
+            trigger="click">
           <template #reference>
             <el-icon>
               <QuestionFilled/>
             </el-icon>
           </template>
-          <pre>{{ help }}</pre>
+          <div style="overflow: scroll">
+            <pre>{{ help }}</pre>
+          </div>
         </el-popover>
       </el-col>
 

@@ -118,7 +118,7 @@ const xxteaTools = {
     }
 }
 
-const timeTools = {
+export const timeTools = {
     // 将本地时间转换成 unix时间戳并保留后6位
     localTimeToUnixWithSixDecimal(localTime: Date): string {
         const unixTime = Math.floor(localTime.getTime() / 1000);

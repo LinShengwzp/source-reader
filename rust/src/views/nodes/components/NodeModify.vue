@@ -1,22 +1,37 @@
 <script setup lang="ts">
 
-import {NodeInfo} from "@/utils/Models";
-import {reactive, ref} from "vue";
+import {FormModelItem, NodeInfo} from "@/utils/Models";
+import {onBeforeUnmount, onMounted, reactive, ref} from "vue";
 import {ElNotification, TabsPaneContext} from "element-plus";
 import NodeDetail from "@/views/nodes/components/NodeDetail.vue";
+import CodeEditor from "@/components/CodeEditor.vue";
+import NodeDocs from "@/views/nodes/components/NodeDocs.vue";
 
 interface NodeModifyInitData {
   nodeInfoList: NodeInfo[],
   currNode: number,
   currNodeName: string,
+  activeToolName: string,
 }
 
 const nodeDetailRef = ref()
+const modifyToolRef = ref()
+const codeEditorRef = ref()
 const initData: NodeModifyInitData = reactive({
   nodeInfoList: [],
   currNode: 0,
   currNodeName: '',
+  activeToolName: 'docs',
 })
+
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize);
+});
 
 const init = (node: NodeInfo) => {
   if (!node || !node.sourceName) {
@@ -82,6 +97,13 @@ const handleNodeTabRemove = (targetName: string) => {
   }
 }
 
+const handleFormItemForce = (item: FormModelItem, value: any) => {
+  if (item.type === 'text') {
+    initData.activeToolName = 'code'
+    codeEditorRef.value.init(value)
+  }
+}
+
 /**
  * 重置清理
  */
@@ -89,6 +111,16 @@ const clean = () => {
   initData.nodeInfoList = []
   initData.currNode = 0
 }
+
+/**
+ * 监听屏幕高度
+ */
+const screenHeight = ref(window.innerHeight);
+const screenWidth = ref(window.innerWidth);
+const handleResize = () => {
+  screenHeight.value = window.innerHeight;
+  screenWidth.value = window.innerWidth;
+};
 
 defineExpose({
   init, clean
@@ -108,10 +140,88 @@ defineExpose({
       </el-tab-pane>
     </el-tabs>
 
-    <NodeDetail v-show="initData.nodeInfoList.length > 0 && initData.currNodeName" ref="nodeDetailRef"/>
+    <div class="modify-box" :style="{height: `${screenHeight - ((screenHeight/10) + 200)}px`}">
+      <div class="node-modify">
+        <NodeDetail v-show="initData.nodeInfoList.length > 0 && initData.currNodeName"
+                    @itemForce="handleFormItemForce"
+                    ref="nodeDetailRef"/>
+      </div>
+
+      <div class="modify-tool" ref="modifyToolRef"
+           v-show="initData.nodeInfoList.length > 0 && initData.currNodeName">
+
+        <el-tabs
+            v-model="initData.activeToolName"
+            type="card"
+            class="tool-tabs">
+          <el-tab-pane label="文档" name="docs">
+            <NodeDocs />
+          </el-tab-pane>
+          <el-tab-pane label="代码编辑器" name="code">
+            <CodeEditor ref="codeEditorRef"></CodeEditor>
+          </el-tab-pane>
+          <el-tab-pane label="分类工具" name="cat">
+            <div class="iframe-box">
+              <iframe class="iframe-item" src="https://bigfantu.gitee.io/xsread/"></iframe>
+            </div>
+          </el-tab-pane>
+          <el-tab-pane label="Task" name="fourth">Task</el-tab-pane>
+        </el-tabs>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <style scoped lang="scss">
+
+
+.node-modify-box {
+  position: relative;
+
+  .modify-box {
+    display: flex;
+
+    .node-modify {
+      flex: 1;
+      margin-left: 1rem;
+      overflow: scroll;
+      display: inline-block;
+    }
+
+    .modify-tool {
+      flex: 1;
+      display: inline-block;
+      overflow: scroll;
+
+      div {
+        height: 100%;
+      }
+
+      .iframe-box {
+        height: 100%;
+
+        .iframe-item {
+          width: 100%;
+          height: 100%;
+          border: none;
+        }
+      }
+    }
+  }
+
+
+}
+</style>
+
+
+<style lang="scss">
+
+.modify-tool {
+  .el-tabs__content {
+    height: 85% !important;
+  }
+}
+
 
 </style>

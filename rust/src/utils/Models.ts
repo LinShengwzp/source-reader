@@ -154,7 +154,7 @@ export interface NodeInfo {
     desc?: string,
     lastModifyTime?: string,
     toTop?: string,
-    sourceJson?: string | object,
+    sourceJson?: string,
     enable?: number,
 }
 
@@ -196,16 +196,18 @@ export interface FileInfo {
  */
 export interface FormModelItem {
     type: string,
-    label?: string,
+    label: string,
     modelValue?: string | number | boolean,
     name?: string,
-    model?: string,
+    model: string,
     icon?: string,
     placeholder?: string,
     disabled?: boolean,
     rules?: Array<any>,
     options?: Array<TypeInfo>,
     help?: string,
+    handle?: Function,
+    callback?: Function
 }
 
 /**
