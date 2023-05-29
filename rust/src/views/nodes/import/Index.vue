@@ -200,8 +200,8 @@ defineExpose({
             <el-table-column prop="fileName" label="operation" width="260">
               <template #default="scope">
                 <div class="select-file-del">
-                  <el-link class="operator-link-btn" type="primary" href="#" @click="">全部保存</el-link>
                   <el-link class="operator-link-btn" type="success" href="#" @click="">全部导出</el-link>
+                  <el-link class="operator-link-btn" type="primary" href="#" @click="">全部保存</el-link>
                   <el-link class="operator-link-btn" type="danger" href="#" @click="handleFileRemove">移除</el-link>
                 </div>
               </template>
