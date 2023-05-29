@@ -36,6 +36,36 @@ export const stringifyJson = (obj: any, keys: string[]): object => {
 }
 
 /**
+ * 将其中几个成员还原成string
+ * @param obj
+ * @param keys
+ * @returns {*}
+ */
+export const parseJson = (obj: any, keys: string[]): object => {
+    if (obj) {
+        for (const key in obj) {
+            if (keys.indexOf(key) >= 0) {
+                try {
+                    const type = typeof obj[key]
+                    if (type === 'string') {
+                        if (obj[key]) {
+                            obj[key] = JSON.parse(obj[key])
+                        } else {
+                            delete obj[key]
+                        }
+                    }
+                } catch (e) {
+                    throw new Error(`请提供正确的json格式: [${key}]`)
+                }
+            } else {
+                obj[key] = obj[key]
+            }
+        }
+    }
+    return obj
+}
+
+/**
  * 处理json内部的object
  * @param obj
  */

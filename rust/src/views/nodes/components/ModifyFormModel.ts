@@ -593,4 +593,4 @@ export const moreForm: any = {
     shudanList: shudanList,
 }
 
-export const groupFrom: Array<string> = ['bookWorld', 'shudanList',]
+export const groupFromKeyName: Array<string> = ['bookWorld', 'shudanList',]

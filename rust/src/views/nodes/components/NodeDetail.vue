@@ -3,11 +3,12 @@ import {FormGroupItem, FormModelItem, NodeInfo, NodeSourceType, SRNodeInfo} from
 import {reactive} from "vue";
 
 import DataEditor from "@/components/DataEditor.vue";
-import {detailForm, groupFrom, modifyFromItem, moreForm} from "@/views/nodes/components/ModifyFormModel";
+import {detailForm, groupFromKeyName, modifyFromItem, moreForm} from "@/views/nodes/components/ModifyFormModel";
 import {timeTools} from "@/utils/xbsTool/xbsTools";
-import {stringifyJson} from "@/utils/Strutil";
+import {parseJson, stringifyJson} from "@/utils/Strutil";
 import {ArrowLeftBold, CloseBold, Edit, Select} from "@element-plus/icons-vue";
 import SvgIcon from "@/components/SvgIcon/Index.vue";
+import {TabPaneName} from "element-plus";
 
 const props = defineProps({
   nodeInfo: {
@@ -24,6 +25,8 @@ interface NodeDetailInitData {
   modifyItem: string, // 编辑某一项
   modifyItemForm: FormGroupItem,
   modifyGroupFormType: boolean, // 是否是groupItem
+
+  modifyGroupTabName: '',
 }
 
 const initData: NodeDetailInitData = reactive({
@@ -36,6 +39,7 @@ const initData: NodeDetailInitData = reactive({
     title: ''
   },
   modifyGroupFormType: false,
+  modifyGroupTabName: ''
 })
 
 const init = (node: NodeInfo) => {
@@ -70,17 +74,33 @@ const init = (node: NodeInfo) => {
     console.error("parse json failure")
     return;
   }
-
-
   submit()
 }
 
 const changeValue = (item: FormModelItem, value: any) => {
-  (initData.nodeJson as any)[item.model] = value
+  if (initData.modifyItem) {
+    if (initData.modifyGroupFormType && initData.modifyGroupTabName) {
+      // 分组数据
+      (initData.nodeJson as any)[initData.modifyItem][initData.modifyGroupTabName][item.model] = value
+    } else {
+      (initData.nodeJson as any)[initData.modifyItem][item.model] = value
+    }
+  } else {
+    (initData.nodeJson as any)[item.model] = value
+  }
 }
 
 const clean = () => {
   initData.node = {}
+  initData.nodeJson = {
+    sourceName: '',
+  }
+  initData.modifyItem = ''
+  initData.modifyItemForm = {
+    title: ''
+  }
+  initData.modifyGroupFormType = false
+  initData.modifyGroupTabName = ''
 }
 
 /**
@@ -116,18 +136,32 @@ const submit = () => {
  */
 const modifyDetailItem = (formName: string, itemKey: string) => {
   initData.modifyItem = itemKey
-  initData.modifyGroupFormType = groupFrom.indexOf(itemKey) > 0
+  initData.modifyGroupFormType = groupFromKeyName.indexOf(itemKey) >= 0
   switch (formName) {
     case 'detailForm': {
-      initData.modifyItemForm = detailForm[itemKey]
-      // 数据处理
+      initData.modifyItemForm = detailForm[itemKey];
       break
     }
     case 'moreForm': {
       initData.modifyItemForm = moreForm[itemKey]
-      // 数据处理
       break
     }
+    default:
+      return
+  }
+  // 数据处理
+  if (initData.modifyGroupFormType) {
+    // 分组的数据
+    let dataGroupMap = (initData.nodeJson as any)[initData.modifyItem]
+    if (dataGroupMap) {
+      Object.keys(dataGroupMap).forEach((name: string) => {
+        dataGroupMap[name] = stringifyJson(dataGroupMap[name], ['requestInfo', 'httpHeaders', 'list', 'moreKeys'])
+      })
+    }
+  } else {
+    // 不分组的数据
+    let data = (initData.nodeJson as any)[initData.modifyItem]
+    data = stringifyJson(data, ['requestInfo', 'httpHeaders', 'list', 'moreKeys'])
   }
 }
 
@@ -135,24 +169,63 @@ const modifyDetailItem = (formName: string, itemKey: string) => {
  * 编辑详细配置点击返回键/保存/取消
  */
 const detailBackAndSave = (save: boolean = true) => {
+  // 数据处理
+  // 数据还原
+  if (initData.modifyItem) {
+    if (save) {
+      if (initData.modifyGroupFormType) {
+        // 分组数据
+        let groupData = (initData.nodeJson as any)[initData.modifyItem]
+        Object.keys(groupData).forEach((name: string) => {
+          let data = groupData[name]
+          data = parseJson({...data}, ['httpHeaders', 'moreKeys'])
+        })
+      } else {
+        // 不分组的数据
+        let data = (initData.nodeJson as any)[initData.modifyItem]
+        data = parseJson({...data}, ['httpHeaders', 'moreKeys'])
+      }
+    }
+  }
+
   initData.modifyItem = ''
   initData.modifyItemForm = {title: ''}
   initData.modifyGroupFormType = false
-
-  // 数据处理
+  initData.modifyGroupTabName = ''
 }
 
-const handleInput = (e: any) => {
-  console.log(e, '23333', initData.node?.sourceName)
+/**
+ * 编辑分组标签
+ * @param targetName
+ * @param action
+ */
+const handleGroupTabsEdit = (targetName: TabPaneName | undefined,
+                             action: 'remove' | 'add') => {
+
+}
+const handleInput = (item: FormModelItem) => {
+  let commitData = undefined
+  if (initData.modifyItem) {
+    if (initData.modifyGroupFormType) {
+      // 分组数据
+      if (initData.modifyGroupTabName) {
+        commitData = (initData.nodeJson as any)[initData.modifyItem][initData.modifyGroupTabName][item.model]
+      }
+    } else {
+      commitData = (initData.nodeJson as any)[initData.modifyItem][item.model]
+    }
+  } else {
+    commitData = (initData.nodeJson as any)[item.model]
+  }
+  if (typeof commitData !== undefined) {
+    emits('itemForce', item, commitData)
+  }
 }
 const handleChange = (e: any) => {
   console.log(e, '2444', initData.node?.sourceName)
 }
 const handleForce = (item: FormModelItem) => {
-  emits('itemForce', item, (initData.nodeJson as any)[item.model])
-}
-const handleForceDetailItem = (item: FormModelItem) => {
-
+  handleInput(item)
 }
 
 defineExpose({
@@ -229,7 +302,7 @@ defineExpose({
                         :placeholder="item.placeholder"
                         :options="item.options"
                         v-model:model-value="initData.nodeJson[item.model]"
-                        @input="handleInput"
+                        @input="handleInput(item)"
                         @onChange="handleChange"
                         @onForce="handleForce(item)"
                         clearable/>
@@ -339,9 +412,9 @@ defineExpose({
                             :placeholder="item.placeholder"
                             :options="item.options"
                             v-model:model-value="initData.nodeJson[initData.modifyItem][item.model]"
-                            @input="handleInput"
+                            @input="handleInput(item)"
                             @onChange="handleChange"
-                            @onForce="handleForceDetailItem(item)"
+                            @onForce="handleForce(item)"
                             clearable/>
               </div>
 
@@ -349,11 +422,52 @@ defineExpose({
           </div>
 
           <div class="modify-group-item" v-else>
-            <el-form
-                ref="groupInfoFrom"
-                label-width="100px"
-                :model="initData.nodeJson">
-            </el-form>
+
+            <el-divider content-position="left">数据分组</el-divider>
+            <el-tabs
+                v-model="initData.modifyGroupTabName"
+                type="card"
+                editable
+                class="demo-tabs"
+                @edit="handleGroupTabsEdit">
+              <el-tab-pane
+                  v-for="tabName in Object.keys(initData.nodeJson[initData.modifyItem])"
+                  :key="tabName" :label="tabName" :name="tabName">
+
+                <el-form
+                    ref="groupInfoFrom"
+                    label-width="100px"
+                    :model="initData.nodeJson[initData.modifyItem][tabName]">
+
+                  <div v-for="group in initData.modifyItemForm.formGroups" :key="group.title">
+                    <el-divider content-position="left">{{ group.title }}</el-divider>
+
+                    <div class="detail-tips">
+                      <ul>
+                        <li class="detail-tip" v-for="tip in group.tips">
+                          {{ tip }}
+                        </li>
+                      </ul>
+                    </div>
+
+                    <DataEditor v-for="item in group.items"
+                                :type="item.type"
+                                :label="item.label"
+                                :name="item.model"
+                                :help="item.help"
+                                :placeholder="item.placeholder"
+                                :options="item.options"
+                                v-model:model-value="initData.nodeJson[initData.modifyItem][tabName][item.model]"
+                                @input="handleInput(item)"
+                                @onChange="handleChange"
+                                @onForce="handleForce(item)"
+                                clearable/>
+                  </div>
+
+                </el-form>
+
+              </el-tab-pane>
+            </el-tabs>
           </div>
         </div>
       </div>

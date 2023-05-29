@@ -73,6 +73,8 @@ const init = (node: NodeInfo) => {
     initData.currNode = initData.nodeInfoList.length
     initData.currNodeName = node.sourceName
     selectNode(node)
+  } else {
+    selectNode(node)
   }
 }
 
@@ -82,7 +84,6 @@ const init = (node: NodeInfo) => {
  * @param event
  */
 const handleNodeTabClick = (tab: TabsPaneContext, event: Event) => {
-  console.log(tab.paneName)
   initData.nodeInfoList.forEach((item, index) => {
     if (item.sourceName === tab.paneName) {
       initData.currNode = index
@@ -106,6 +107,7 @@ const handleNodeTabRemove = (targetName: string) => {
     initData.currNode = 0
     if (initData.nodeInfoList.length > 0) {
       initData.currNodeName = initData.nodeInfoList[0].sourceName || '空白节点'
+      selectNode(initData.nodeInfoList[0])
     }
   }
 }
