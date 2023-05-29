@@ -164,7 +164,7 @@ defineExpose({
     <transition name="fade">
       <div class="node-detail-box" v-show="!initData.modifyItem">
         <el-form ref="nodeInfoFormRef"
-                 label-width="100px"
+                 label-width="20%"
                  :model="initData.nodeJson">
           <el-divider content-position="left">基础信息</el-divider>
 
@@ -185,7 +185,7 @@ defineExpose({
             <el-col :span="10">
               <el-divider content-position="center">常用配置</el-divider>
 
-              <el-form-item v-for="itemKey in Object.keys(detailForm as any)"
+              <el-form-item label-width="100px" v-for="itemKey in Object.keys(detailForm as any)"
                             :key="itemKey"
                             :label="detailForm[itemKey].title">
                 <el-button v-if="hasConfigBtn(itemKey)" type="success" @click="modifyDetailItem('detailForm', itemKey)">
@@ -198,7 +198,7 @@ defineExpose({
             <el-col :span="10" :offset="1">
               <el-divider content-position="center">更多配置</el-divider>
 
-              <el-form-item v-for="itemKey in Object.keys(moreForm as any)"
+              <el-form-item label-width="100px" v-for="itemKey in Object.keys(moreForm as any)"
                             @click="modifyDetailItem('moreForm', itemKey)"
                             :label="moreForm[itemKey].title">
                 <el-button v-if="hasConfigBtn(itemKey)"
