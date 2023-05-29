@@ -534,6 +534,7 @@ defineExpose({
 
   .node-detail-item-box {
     flex: 1;
+    width: 100%;
 
     .detail-form-box {
       overflow: scroll;
