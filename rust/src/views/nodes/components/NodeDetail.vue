@@ -113,7 +113,7 @@ const changeValue = (item: FormModelItem, value: any) => {
  * 清空面板
  */
 const clean = () => {
-  // TODO 清空之前先判断是不是有数据，有数据先存储防止丢失
+  submit()
   initData.node = {}
   initData.nodeJson = {
     sourceName: '',
@@ -150,6 +150,25 @@ const hasConfigBtn = (configKey: string): boolean => {
  */
 const submit = () => {
   console.log(initData.node, "curr node")
+  const node = initData.nodeJson
+  // 存储
+  if (!initData.nodeJson || !initData.nodeJson.sourceName) {
+    // 重新组合数据存储
+    const item: NodeInfo = {
+      id: undefined,
+      platform: 'StandarReader',
+      sourceName: node['sourceName'],
+      sourceType: node['sourceType'],
+      sourceUrl: node['sourceUrl'],
+      enable: node['enable'],
+      weight: node['weight'],
+      sourceJson: sourceJson,
+      authorId: node['authorId'],
+      desc: node['desc'],
+      lastModifyTime: node['lastModifyTime'],
+      toTop: node['toTop'],
+    }
+  }
 }
 
 /**

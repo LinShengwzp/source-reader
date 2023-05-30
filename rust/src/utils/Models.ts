@@ -192,6 +192,61 @@ export interface FileInfo {
 }
 
 /**
+ * api调用格式
+ */
+export interface DataApiAction {
+    action: 'create' | 'exist' | 'query' | 'save' | 'modify' | 'remove',
+    cover?: boolean,
+    data?: any
+}
+
+/**
+ * 数据库表操作
+ */
+export interface DataBaseOperate {
+    create: Function,
+    exist: Function,
+    query: Function,
+    save: Function,
+    modify: Function,
+    remove: Function
+}
+
+/**
+ * 数据库表结构
+ */
+export interface TableInfo {
+    cloName: string,
+    type: 'INTEGER' | 'TEXT' | 'INT',
+    pk: boolean,
+    notNull: boolean,
+    autoIncrement: boolean,
+    default: number | string,
+    union: boolean,
+    comment: string
+}
+
+export interface ColQueryInfo {
+    colName: string,
+    comp?: '=' | 'like' | '>' | '>=' | '<' | '<=', // 默认 =
+    sort?: 'asc' | 'desc', // 默认 asc
+    data: string | number,
+    query?: boolean, // 默认 true
+}
+
+/**
+ * 数据查询条件
+ */
+export interface DataColQueryInfo {
+    columns: Array<ColQueryInfo>,
+    page: {
+        index?: number, //从 第 1 页 开始
+        size?: number,
+        close: boolean
+    }
+}
+
+/**
  * 表单项
  */
 export interface FormModelItem {
@@ -276,4 +331,12 @@ export const findType = (type: Array<TypeInfo>, value: string): TypeInfo | null 
     }
 
     return null;
+}
+
+export const Obj2Array = (obj: any, keyName: string = 'key'): Array<any> => {
+    if (!!obj) {
+        const keyArr = Object.keys(obj)
+
+    }
+    return []
 }
