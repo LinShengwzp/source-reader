@@ -25,8 +25,7 @@ interface NodeDetailInitData {
   modifyItem: string, // 编辑某一项
   modifyItemForm: FormGroupItem,
   modifyGroupFormType: boolean, // 是否是groupItem
-
-  modifyGroupTabName: '',
+  modifyGroupTabName: string,
 }
 
 const initData: NodeDetailInitData = reactive({
@@ -42,6 +41,21 @@ const initData: NodeDetailInitData = reactive({
   modifyGroupTabName: ''
 })
 
+interface GroupTabOperateData {
+  showDialog: boolean,
+  addTabName: string,
+  showRemove: boolean,
+  removeName: string,
+}
+
+const groupTabOperate: GroupTabOperateData = reactive({
+  showDialog: false,
+  addTabName: '',
+  showRemove: false,
+  removeName: ''
+})
+
+const stringifyKeys: string[] = ['requestInfo', 'httpHeaders', 'moreKeys'];
 const init = (node: NodeInfo) => {
   clean()
   initData.node = node
@@ -164,13 +178,13 @@ const modifyDetailItem = (formName: string, itemKey: string) => {
     let dataGroupMap = (initData.nodeJson as any)[initData.modifyItem]
     if (dataGroupMap) {
       Object.keys(dataGroupMap).forEach((name: string) => {
-        dataGroupMap[name] = stringifyJson(dataGroupMap[name], ['requestInfo', 'httpHeaders', 'list', 'moreKeys'])
+        dataGroupMap[name] = stringifyJson(dataGroupMap[name], stringifyKeys)
       })
     }
   } else {
     // 不分组的数据
     let data = (initData.nodeJson as any)[initData.modifyItem]
-    data = stringifyJson(data, ['requestInfo', 'httpHeaders', 'list', 'moreKeys'])
+    data = stringifyJson(data, stringifyKeys)
   }
 }
 
@@ -187,12 +201,12 @@ const detailBackAndSave = (save: boolean = true) => {
         let groupData = (initData.nodeJson as any)[initData.modifyItem]
         Object.keys(groupData).forEach((name: string) => {
           let data = groupData[name]
-          data = parseJson({...data}, ['httpHeaders', 'moreKeys'])
+          data = parseJson({...data}, stringifyKeys)
         })
       } else {
         // 不分组的数据
         let data = (initData.nodeJson as any)[initData.modifyItem]
-        data = parseJson({...data}, ['httpHeaders', 'moreKeys'])
+        data = parseJson({...data}, stringifyKeys)
       }
     }
   }
@@ -210,7 +224,63 @@ const detailBackAndSave = (save: boolean = true) => {
  */
 const handleGroupTabsEdit = (targetName: TabPaneName | undefined,
                              action: 'remove' | 'add') => {
+  switch (action) {
+    case "add": {
+      groupTabOperate.addTabName = ''
+      groupTabOperate.showDialog = true
+      break
+    }
+    case "remove": {
+      if (targetName) {
+        groupTabOperate.showRemove = true
+        groupTabOperate.removeName = targetName as string
+      }
+      break
+    }
+  }
+}
 
+/**
+ * 添加分组标签
+ * @param copy 是否复制
+ */
+const handleAddGroup = (copy: boolean) => {
+  if (!initData.modifyItem || !groupTabOperate.addTabName || !initData.modifyGroupFormType) {
+    return
+  }
+  const modifyItem = (initData.nodeJson as any)[initData.modifyItem]
+  let itemKeys = Object.keys(modifyItem);
+  if (itemKeys.indexOf(groupTabOperate.addTabName) >= 0) {
+    return;
+  }
+  let newTabData = {
+    actionID: initData.modifyItem,
+    parserID: "DOM",
+    _sIndex: itemKeys.length
+  };
+  if (copy) {
+    const copyTargetName = initData.modifyItem === 'bookWorld' ? 'searchBook' : 'searchShudan'
+    let copyTarget = stringifyJson(initData.nodeJson[copyTargetName], stringifyKeys)
+    newTabData = {...copyTarget, ...newTabData}
+  }
+  modifyItem[groupTabOperate.addTabName] = newTabData
+
+  initData.modifyGroupTabName = groupTabOperate.addTabName
+  groupTabOperate.showDialog = false
+  groupTabOperate.addTabName = ''
+}
+
+/**
+ * 删除分组标签
+ */
+const handleRemoveGroup = () => {
+  if (!initData.modifyItem || !groupTabOperate.removeName || !initData.modifyGroupFormType) {
+    return
+  }
+  const modifyItem = (initData.nodeJson as any)[initData.modifyItem]
+  delete modifyItem[groupTabOperate.removeName]
+  groupTabOperate.showRemove = false
+  groupTabOperate.removeName = ''
 }
 
 /**
@@ -218,6 +288,7 @@ const handleGroupTabsEdit = (targetName: TabPaneName | undefined,
  * @param name
  */
 const handleGroupTabsChange = (name: TabPaneName) => {
+
 }
 
 const handleInput = (item: FormModelItem) => {
@@ -490,6 +561,41 @@ defineExpose({
         </div>
       </div>
     </transition>
+
+    <el-dialog
+        v-model="groupTabOperate.showDialog"
+        title="添加分组"
+        width="30%"
+        :close-on-click-modal="false"
+        :close-on-press-escape="false"
+        :draggable="true"
+        align-center>
+      <div>
+        <el-input placeholder="分组名称" v-model="groupTabOperate.addTabName"/>
+      </div>
+      <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="groupTabOperate.showDialog = false">取消</el-button>
+        <el-button type="success" @click="handleAddGroup(true)">复制搜索</el-button>
+        <el-button type="primary" @click="handleAddGroup">添加分组</el-button>
+      </span>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+        v-model="groupTabOperate.showRemove"
+        title="删除分组"
+        width="30%"
+        align-center>
+      <span>是否删除分组 [{{ groupTabOperate.removeName }}] ？</span>
+      <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="groupTabOperate.showRemove = false">取消</el-button>
+        <el-button type="danger" @click="handleRemoveGroup">删除</el-button>
+      </span>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
