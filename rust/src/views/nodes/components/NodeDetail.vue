@@ -256,7 +256,7 @@ const handleAddGroup = (copy: boolean) => {
   let newTabData = {
     actionID: initData.modifyItem,
     parserID: "DOM",
-    _sIndex: itemKeys.length
+    _sIndex: itemKeys.length + 1
   };
   if (copy) {
     const copyTargetName = initData.modifyItem === 'bookWorld' ? 'searchBook' : 'searchShudan'
@@ -278,6 +278,17 @@ const handleRemoveGroup = () => {
     return
   }
   const modifyItem = (initData.nodeJson as any)[initData.modifyItem]
+  let itemKeys = Object.keys(modifyItem).filter(i => i !== groupTabOperate.removeName);
+
+  // 切换标签页
+  if (initData.modifyGroupTabName === groupTabOperate.removeName) {
+    if (itemKeys.length > 0) {
+      initData.modifyGroupTabName = itemKeys[0]
+    } else {
+      initData.modifyGroupTabName = ''
+    }
+  }
+
   delete modifyItem[groupTabOperate.removeName]
   groupTabOperate.showRemove = false
   groupTabOperate.removeName = ''
@@ -577,7 +588,7 @@ defineExpose({
       <span class="dialog-footer">
         <el-button @click="groupTabOperate.showDialog = false">取消</el-button>
         <el-button type="success" @click="handleAddGroup(true)">复制搜索</el-button>
-        <el-button type="primary" @click="handleAddGroup">添加分组</el-button>
+        <el-button type="primary" @click="handleAddGroup(false)">添加分组</el-button>
       </span>
       </template>
     </el-dialog>
