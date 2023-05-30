@@ -333,10 +333,44 @@ export const findType = (type: Array<TypeInfo>, value: string): TypeInfo | null 
     return null;
 }
 
-export const Obj2Array = (obj: any, keyName: string = 'key'): Array<any> => {
+/**
+ * 将对象转成list
+ * @param obj
+ * @param keyName
+ * @constructor
+ */
+export const obj2Array = (obj: any, keyName: string = 'key'): Array<any> => {
     if (!!obj) {
         const keyArr = Object.keys(obj)
-
+        let arr: Array<any> = []
+        keyArr.forEach(key => {
+            let objElement = obj[key];
+            if (typeof objElement === 'object') {
+                objElement[keyName] = key
+            }
+            arr.push(objElement)
+        })
+        return arr
     }
     return []
+}
+
+/**
+ * list转对象
+ * @param arr
+ * @param keyName
+ */
+export const arr2Object = (arr: Array<any>, keyName: string): any => {
+    if (arr && arr.length > 0) {
+        const obj: any = {}
+        arr.forEach(item => {
+            if (typeof item === 'object' && item[keyName]) {
+                obj[item[keyName]] = item
+            }
+        })
+        if (!!obj) {
+            return obj
+        }
+    }
+    return null
 }
