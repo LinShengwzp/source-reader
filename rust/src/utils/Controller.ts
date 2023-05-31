@@ -1,5 +1,6 @@
 import {invoke} from "@tauri-apps/api/tauri";
-import {checkAndCreateTableSqlite} from "@/utils/storage/Sqlite";
+import {create} from "@/utils/storage/Sqlite";
+import {getTable} from "@/utils/storage/Table";
 
 export const service = async () => {
     const res = await invoke("")
@@ -8,6 +9,6 @@ export const service = async () => {
 export async function greet() {
     // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
     const res = await invoke("greet", {name: "2333"});
-    console.log(res, checkAndCreateTableSqlite('bookSource'))
+    console.log(res, create(getTable('bookInfo')))
     return res
 }

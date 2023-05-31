@@ -204,9 +204,9 @@ export interface DataApiAction {
  * 数据库表操作
  */
 export interface DataBaseOperate {
-    create: Function,
     exist: Function,
     query: Function,
+    one: Function,
     count: Function,
     save: Function,
     modify: Function,
@@ -218,13 +218,15 @@ export interface DataBaseOperate {
  */
 export interface DataTable {
     tableName: string,
-    columns?: Array<TableInfo>
+    columns: Array<TableColumnInfo>,
+    operates?: DataBaseOperate,
+    index?: string[][] // 索引
 }
 
 /**
  * 数据库表结构
  */
-export interface TableInfo {
+export interface TableColumnInfo {
     name: string,
     type: 'INTEGER' | 'TEXT' | 'INT',
     comment: string,
@@ -237,10 +239,16 @@ export interface TableInfo {
 
 export interface ColQueryInfo {
     colName: string,
-    comp?: '=' | 'like' | '>' | '>=' | '<' | '<=', // 默认 =
+    comp?: '=' | 'like' | 'leftLike' | 'rightLike' | 'between' | '>' | '>=' | '<' | '<=', // 默认 =
     sort?: 'asc' | 'desc', // 默认 asc
-    data: string | number,
+    data?: string | number,
     query?: boolean, // 默认 true
+}
+
+export interface DataQueryPage {
+    index?: number, //从 第 1 页 开始
+    size?: number,
+    close: boolean
 }
 
 /**
@@ -248,11 +256,7 @@ export interface ColQueryInfo {
  */
 export interface DataColQueryInfo {
     columns: Array<ColQueryInfo>,
-    page: {
-        index?: number, //从 第 1 页 开始
-        size?: number,
-        close: boolean
-    }
+    page: DataQueryPage
 }
 
 /**

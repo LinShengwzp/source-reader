@@ -31,3 +31,13 @@ cargo
 ```shell
 ${USER}/AppData/Roaming/com.anmi.reader/reader.db
 ```
+
+## 打包问题
+
++ wix311-binaries.zip
+
+手动下载文件放到 ``C:\Users\用户\AppData\Local\tauri\WixTools``
+
++ nsis-3.zip
+
+需要找一个能用的包，否则放上去会被删掉……
