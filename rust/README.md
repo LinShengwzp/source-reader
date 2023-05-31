@@ -25,3 +25,9 @@ yarn vite dev
 启动后端服务
 cargo
 [Debugging in CLion](https://tauri.app/zh-cn/v1/guides/debugging/clion)
+
+## 数据库文件
+
+```shell
+${USER}/AppData/Roaming/com.anmi.reader/reader.db
+```

@@ -214,17 +214,25 @@ export interface DataBaseOperate {
 }
 
 /**
+ * 数据表
+ */
+export interface DataTable {
+    tableName: string,
+    columns?: Array<TableInfo>
+}
+
+/**
  * 数据库表结构
  */
 export interface TableInfo {
-    cloName: string,
+    name: string,
     type: 'INTEGER' | 'TEXT' | 'INT',
-    pk: boolean,
-    notNull: boolean,
-    autoIncrement: boolean,
-    default: number | string,
-    union: boolean,
-    comment: string
+    comment: string,
+    pk?: boolean,
+    notNull?: boolean,
+    autoIncrement?: boolean,
+    default?: number | string,
+    union?: boolean,
 }
 
 export interface ColQueryInfo {
