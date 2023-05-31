@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import {reactive} from "vue";
+import {onMounted, reactive} from "vue";
+import {greet} from '@/utils/Controller'
 
 const initData = reactive({})
 
-const init = () => {
 
+onMounted(() => {
+  init()
+})
+
+const init = async () => {
+  const res = await greet()
 }
 
 defineExpose({

@@ -1,6 +1,5 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 mod service;
 mod storage;
 mod model;
@@ -12,7 +11,19 @@ fn greet(name: &str) -> String {
 }
 
 fn main() {
+    use tauri::Manager;
     tauri::Builder::default()
+        .plugin(tauri_plugin_sql::Builder::default().build())
+        // 打开
+        .setup(|app| {
+            #[cfg(debug_assertions)] // only include this code on debug builds
+            {
+                let window = app.get_window("main").unwrap();
+                window.open_devtools();
+                // window.close_devtools();
+            }
+            Ok(())
+        })
         // 这一步通过 generate_handler! 宏生成了一个处理函数 greet 的调用处理器。
         .invoke_handler(tauri::generate_handler![greet, service::index])
         // 这一步使用 generate_context! 宏生成了一个 Tauri 上下文，并将其传递给 run 方法。Tauri 上下文包含了应用程序的配置信息和其他运行时上下文。通过这一步，Tauri 应用程序开始运行，并等待前端的事件和调用。

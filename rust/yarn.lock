@@ -309,7 +309,7 @@
   resolved "https://registry.npmmirror.com/@sxzz/popperjs-es/-/popperjs-es-2.11.7.tgz#a7f69e3665d3da9b115f9e71671dae1b97e13671"
   integrity sha512-Ccy0NlLkzr0Ex2FKvh2X+OyERHXJ88XJ1MXtsI9y9fGexlaXaVTPzBCRBwIxFkORuOb+uBqeu+RqnpgYTEZRUQ==
 
-"@tauri-apps/api@^1.3.0":
+"@tauri-apps/api@^1.2.0", "@tauri-apps/api@^1.3.0":
   version "1.3.0"
   resolved "https://registry.npmmirror.com/@tauri-apps/api/-/api-1.3.0.tgz#d0c853ab2cc7506bd826c5f7f260c67c7c15def5"
   integrity sha512-AH+3FonkKZNtfRtGrObY38PrzEj4d+1emCbwNGu0V2ENbXjlLHMZQlUh+Bhu/CRmjaIwZMGJ3yFvWaZZgTHoog==
@@ -3169,6 +3169,12 @@ svgo@^2.8.0:
     csso "^4.2.0"
     picocolors "^1.0.0"
     stable "^0.1.8"
+
+"tauri-plugin-sql-api@https://github.com/tauri-apps/tauri-plugin-sql":
+  version "0.0.0"
+  resolved "https://github.com/tauri-apps/tauri-plugin-sql#312c4d39ac5eb1c6c75e8ecee1c4bc89ed799675"
+  dependencies:
+    "@tauri-apps/api" "^1.2.0"
 
 to-object-path@^0.3.0:
   version "0.3.0"

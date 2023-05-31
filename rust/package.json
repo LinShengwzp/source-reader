@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "start": "vite dev",
+    "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "td": "tauri dev",
+    "tb": "tauri build"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.1.8",
@@ -20,6 +23,7 @@
     "codemirror": "^6.0.1",
     "codemirror-editor-vue3": "^2.3.0",
     "element-plus": "^2.3.4",
+    "tauri-plugin-sql-api": "https://github.com/tauri-apps/tauri-plugin-sql",
     "vue": "^3.2.45",
     "vue-codemirror": "^6.1.1",
     "vue-router": "^4.2.1"

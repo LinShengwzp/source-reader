@@ -5,9 +5,18 @@ import {onMounted, reactive, ref} from "vue";
 import router from "@/router/Router";
 import {MenuList} from "@/utils/Config";
 
+interface MainInitData {
+  currMenu: MenuItem
+}
+
 const footerRef = ref()
-const initData = reactive({
-  currMenu: {},
+const initData: MainInitData = reactive({
+  currMenu: {
+    id: 0,
+    icon: '',
+    label: '',
+    name: ''
+  },
 })
 
 onMounted(() => {
