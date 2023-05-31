@@ -195,7 +195,7 @@ export interface FileInfo {
  * api调用格式
  */
 export interface DataApiAction {
-    action: 'create' | 'exist' | 'query' | 'save' | 'modify' | 'remove',
+    action: 'create' | 'exist' | 'query' | 'count' | 'save' | 'modify' | 'remove',
     cover?: boolean,
     data?: any
 }
@@ -207,6 +207,7 @@ export interface DataBaseOperate {
     create: Function,
     exist: Function,
     query: Function,
+    count: Function,
     save: Function,
     modify: Function,
     remove: Function

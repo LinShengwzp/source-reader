@@ -1,5 +1,10 @@
 use rusqlite::{Connection, Result};
 
+pub struct User {
+    id: u32,
+    name: String,
+    email: String
+}
 
 fn create() -> Result<()> {
     let conn = Connection::open("path/to/database.db")?;
@@ -28,7 +33,7 @@ fn create() -> Result<()> {
     })?;
 
     for row in rows {
-        println!("{:?}", row?);
+        // println!("{:?}", row?);
     }
 
     Ok(())
