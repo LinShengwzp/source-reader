@@ -209,6 +209,7 @@ export interface DataBaseOperate {
     one: Function,
     count: Function,
     save: Function,
+    saveBatch: Function,
     modify: Function,
     remove: Function
 }
@@ -218,8 +219,9 @@ export interface DataBaseOperate {
  */
 export interface DataTable {
     tableName: string,
+    IdKey: string,
     columns: Array<TableColumnInfo>,
-    operates?: DataBaseOperate,
+    operates: DataBaseOperate,
     index?: string[][] // 索引
 }
 

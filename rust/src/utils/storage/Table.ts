@@ -1,19 +1,33 @@
-import {ColQueryInfo, DataBaseOperate, DataTable, TableColumnInfo} from "@/utils/Models";
-import {create, count, exist, modify, query, queryOne, remove, save} from "@/utils/storage/Sqlite";
+import {ColQueryInfo, DataBaseOperate, DataColQueryInfo, DataTable, TableColumnInfo} from "@/utils/Models";
+import {count, exist, modify, query, queryOne, remove, save, saveBatch} from "@/utils/storage/Sqlite";
 
-const table = <T>(tableName: 'bookSource' | 'bookGroup' | 'bookInfo' | 'bookChapter' | 'appConfig', columns: Array<TableColumnInfo>): DataTable => {
+const table = <T extends object>(tableName: 'bookSource' | 'bookGroup' | 'bookInfo' | 'bookChapter' | 'appConfig', columns: Array<TableColumnInfo>): DataTable => {
+    const voidFun = () => {
+    }
     const table: DataTable = {
         tableName: tableName,
+        IdKey: 'id',
         columns: columns,
+        operates: {
+            exist: voidFun,
+            query: voidFun,
+            one: voidFun,
+            count: voidFun,
+            save: voidFun,
+            saveBatch: voidFun,
+            modify: voidFun,
+            remove: voidFun
+        }
     }
     const operates: DataBaseOperate = {
-        exist: (queryParams: ColQueryInfo[]): Promise<boolean> => exist(table, queryParams),
-        query: (queryParams: ColQueryInfo[]): Promise<Array<T>> => query(table, queryParams),
-        one: (queryParams: ColQueryInfo[]): Promise<T> => queryOne(table, queryParams),
-        count: (queryParams: ColQueryInfo[]): Promise<number> => count(table, queryParams),
-        save: (dataList: Array<any>, cover: boolean = false): Promise<T> => save(table, dataList, cover),
-        modify: (data: object): Promise<T> => modify(table, data),
-        remove: (queryParams: ColQueryInfo[]): Promise<T> => remove(table, queryParams)
+        exist: (queryParams: ColQueryInfo[]): Promise<T | undefined> => exist(table, queryParams),
+        query: (queryParams: DataColQueryInfo): Promise<Array<T>> => query(table, queryParams),
+        one: (queryParams: ColQueryInfo[]): Promise<T> => queryOne<T>(table, queryParams),
+        count: (queryParams: ColQueryInfo[]): Promise<number> => count<T>(table, queryParams),
+        save: (data: T, cover: boolean = false): Promise<T> => save<T>(table, data, cover),
+        saveBatch: (dataList: Array<T>, cover: boolean = false): Promise<Array<T>> => saveBatch<T>(table, dataList, cover),
+        modify: (data: T): Promise<T> => modify<T>(table, data),
+        remove: (ids: string[] | number[]): Promise<Array<T>> => remove<T>(table, ids)
     }
     return {
         ...table, ...{
