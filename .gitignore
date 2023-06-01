@@ -1,24 +1,23 @@
-.DS_Store
-node_modules
-dist
-public/dist
+# Logs
 logs
-
-# local env files
-.env.local
-.env.*.local
-
-# Log files
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-package-lock.json
+lerna-debug.log*
+
+node_modules
+dist
+src-tauri/target
+dist-ssr
+*.local
 
 # Editor directories and files
+.vscode/*
+!.vscode/extensions.json
 .idea
-.run
-.vscode
+.DS_Store
 *.suo
 *.ntvs*
 *.njsproj

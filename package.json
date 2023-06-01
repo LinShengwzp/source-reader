@@ -1,125 +1,42 @@
 {
-  "name": "ee",
-  "version": "3.1.0",
-  "description": "A fast, desktop software development framework",
-  "main": "main.js",
+  "name": "source-reader",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "start": "electron . ",
-    "dev": "electron . --env=local",
-    "reload": "nodemon --config ./electron/config/nodemon.json",
-    "test": "set DEBUG=* && electron . --env=local",
-    "build-w": "electron-builder -w=nsis --x64",
-    "build-w-32": "electron-builder -w=nsis --ia32",
-    "build-w-64": "electron-builder -w=nsis --x64",
-    "build-w-arm64": "electron-builder -w=nsis --arm64",
-    "build-wz": "electron-builder -w=7z --x64",
-    "build-wz-32": "electron-builder -w=7z --ia32",
-    "build-wz-64": "electron-builder -w=7z --x64",
-    "build-wz-arm64": "electron-builder -w=7z --arm64",
-    "build-m": "electron-builder -m",
-    "build-m-arm64": "electron-builder -m --arm64",
-    "build-l": "electron-builder -l=deb --x64",
-    "build-l-32": "electron-builder -l=deb --ia32",
-    "build-l-64": "electron-builder -l=deb --x64",
-    "build-l-arm64": "electron-builder -l=deb --arm64",
-    "build-l-armv7l": "electron-builder -l=deb --armv7l",
-    "build-lr-64": "electron-builder -l=rpm --x64",
-    "build-lp-64": "electron-builder -l=pacman --x64",
-    "rd": "ee-core rd --dist_dir=./frontend/dist",
-    "encrypt": "ee-core encrypt",
-    "clean": "ee-core clean",
-    "rebuild": "electron-rebuild",
-    "re-sqlite": "electron-rebuild -f -w better-sqlite3"
-  },
-  "build": {
-    "productName": "sourceReader",
-    "appId": "com.anmi.sourceReader",
-    "copyright": "wallace5303",
-    "directories": {
-      "output": "out"
-    },
-    "asar": true,
-    "files": [
-      "**/*",
-      "!frontend/",
-      "!run/",
-      "!logs/",
-      "!data/"
-    ],
-    "extraResources": {
-      "from": "./build/extraResources/",
-      "to": "extraResources"
-    },
-    "electronDownload": {
-      "mirror": "https://npmmirror.com/mirrors/electron/"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowElevation": true,
-      "allowToChangeInstallationDirectory": true,
-      "installerIcon": "./build/icons/logo.ico",
-      "uninstallerIcon": "./build/icons/logo.ico",
-      "installerHeaderIcon": "./build/icons/logo.ico",
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "小阅读"
-    },
-    "publish": [
-      {
-        "provider": "generic",
-        "url": "https://github.com/wallace5303/electron-egg"
-      }
-    ],
-    "mac": {
-      "icon": "./build/icons/icon.icns",
-      "artifactName": "${productName}-${os}-${version}-${arch}.${ext}",
-      "target": [
-        "dmg",
-        "zip"
-      ]
-    },
-    "win": {
-      "icon": "./build/icons/icon.ico",
-      "artifactName": "${productName}-${os}-${version}-${arch}.${ext}",
-      "target": [
-        {
-          "target": "nsis"
-        }
-      ]
-    },
-    "linux": {
-      "icon": "./build/icons/icon.icns",
-      "artifactName": "${productName}-${os}-${version}-${arch}.${ext}",
-      "target": [
-        "deb"
-      ],
-      "category": "Utility"
-    }
-  },
-  "repository": "https://github.com/wallace5303/ee.git",
-  "keywords": [
-    "Electron"
-  ],
-  "author": "wallace5303, Inc <530353222@qq.com>",
-  "license": "Apache",
-  "devDependencies": {
-    "debug": "^4.3.3",
-    "electron": "^13.6.9",
-    "electron-builder": "^23.1.0",
-    "electron-rebuild": "^3.2.8",
-    "eslint": "^5.13.0",
-    "eslint-plugin-prettier": "^3.0.1",
-    "nodemon": "^2.0.16"
+    "dev": "vite",
+    "start": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "td": "tauri dev",
+    "tb": "tauri build"
   },
   "dependencies": {
-    "better-sqlite3": "^7.6.0",
-    "dayjs": "^1.10.7",
-    "ee-core": "^2.1.0",
-    "electron-updater": "^5.3.0",
-    "iconv-lite": "^0.6.3",
-    "jsonpath": "^1.1.1",
-    "lodash": "^4.17.21",
-    "xmldom": "^0.6.0",
-    "xpath": "^0.0.32"
+    "@codemirror/lang-javascript": "^6.1.8",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "@codemirror/view": "^6.12.0",
+    "@element-plus/icons-vue": "^2.1.0",
+    "@kangc/v-md-editor": "^2.3.15",
+    "@tauri-apps/api": "^1.3.0",
+    "@types/codemirror": "^5.60.7",
+    "codemirror": "^6.0.1",
+    "codemirror-editor-vue3": "^2.3.0",
+    "element-plus": "^2.3.4",
+    "tauri-plugin-sql-api": "https://github.com/tauri-apps/tauri-plugin-sql",
+    "vue": "^3.2.45",
+    "vue-codemirror": "^6.1.1",
+    "vue-router": "^4.2.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.3.0",
+    "@types/node": "^18.7.10",
+    "@vitejs/plugin-vue": "^4.0.0",
+    "sass": "^1.62.1",
+    "typescript": "^4.9.5",
+    "vite": "^4.2.1",
+    "vite-plugin-svg-icons": "^2.0.1",
+    "vite-plugin-vue-setup-extend": "^0.4.0",
+    "vue-tsc": "^1.0.11"
   }
 }
