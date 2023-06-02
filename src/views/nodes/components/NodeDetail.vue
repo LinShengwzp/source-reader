@@ -5,7 +5,7 @@ import {reactive} from "vue";
 import DataEditor from "@/components/DataEditor.vue";
 import {detailForm, groupFromKeyName, modifyFromItem, moreForm} from "@/views/nodes/components/ModifyFormModel";
 import {timeTools} from "@/utils/xbsTool/xbsTools";
-import {parseJson, stringifyJson} from "@/utils/Strutil";
+import {compressJson, parseJson, stringifyJson} from "@/utils/Strutil";
 import {ArrowLeftBold, CloseBold, Edit, Select} from "@element-plus/icons-vue";
 import SvgIcon from "@/components/SvgIcon/Index.vue";
 import {TabPaneName} from "element-plus";
@@ -83,12 +83,11 @@ const init = (node: NodeInfo) => {
         sourceName: sourceName
       }, ...nodeJson
     }
-
+    submit()
   } catch (e) {
     console.error("parse json failure")
     return;
   }
-  submit()
 }
 
 /**
@@ -149,10 +148,11 @@ const hasConfigBtn = (configKey: string): boolean => {
  * 存储提交，如果没有存储过则存储并返回id
  */
 const submit = () => {
-  console.log(initData.node, "curr node")
   const node = initData.nodeJson
   // 存储
   if (!initData.nodeJson || !initData.nodeJson.sourceName) {
+    const sourceJson = compressJson(node)
+    console.log("这里有数据", sourceJson)
     // 重新组合数据存储
     const item: NodeInfo = {
       id: undefined,
@@ -168,6 +168,7 @@ const submit = () => {
       lastModifyTime: node['lastModifyTime'],
       toTop: node['toTop'],
     }
+    console.log("准备存储：", item)
   }
 }
 
