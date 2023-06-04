@@ -12,19 +12,20 @@ interface NodeModifyInitData {
   nodeInfoList: NodeInfo[],
   currNode: number,
   currNodeName: string,
-  activeToolName: string,
+  activeToolName: 'json' | 'docs' | 'cat' | 'code',
   forceItem?: FormModelItem
   showTool: boolean,
 }
 
 const nodeDetailRef = ref()
 const modifyToolRef = ref()
+const jsonEditorRef = ref()
 const codeEditorRef = ref()
 const initData: NodeModifyInitData = reactive({
   nodeInfoList: [],
   currNode: 0,
   currNodeName: '',
-  activeToolName: 'docs',
+  activeToolName: 'json',
   showTool: true,
 })
 
@@ -61,7 +62,7 @@ const init = (node: NodeInfo) => {
     }
   }
   if (!hasNode) {
-    if (initData.nodeInfoList.length > 20) {
+    if (initData.nodeInfoList.length > 30) {
       ElNotification({
         title: '标签页过多',
         message: '别开太多标签',
@@ -112,18 +113,40 @@ const handleNodeTabRemove = (targetName: string) => {
   }
 }
 
+/**
+ * 表单聚焦
+ * @param item
+ * @param value
+ */
 const handleFormItemForce = (item: FormModelItem, value: any) => {
   initData.forceItem = item
+  console.log("当前force", item)
   if (item.type === 'text') {
     initData.activeToolName = 'code'
     codeEditorRef.value.init(value)
   } else {
-    initData.activeToolName = 'docs'
+    initData.activeToolName = 'json'
   }
 }
 
+const handleJsonChange = (json: object) => {
+  jsonEditorRef.value.init(json)
+}
+
+/**
+ * 代码编辑器数据回填
+ * @param code
+ */
 const handleCodeEditorValueChange = (code: string) => {
   nodeDetailRef.value.changeValue(initData.forceItem, code)
+}
+
+/**
+ * 直接修改JSON
+ * @param json
+ */
+const handleJsonEditorValueChange = (json: string) => {
+  // nodeDetailRef.value.changeJson(json, initData.currNodeName)
 }
 
 /**
@@ -167,6 +190,7 @@ defineExpose({
          v-show="initData.nodeInfoList.length > 0 && initData.currNodeName">
       <div class="node-modify">
         <NodeDetail @itemForce="handleFormItemForce"
+                    @valueChange="handleJsonChange"
                     ref="nodeDetailRef"/>
       </div>
 
@@ -176,6 +200,9 @@ defineExpose({
           <el-tabs v-model="initData.activeToolName"
                    type="card"
                    class="tool-tabs">
+            <el-tab-pane label="JSON" name="json">
+              <CodeEditor ref="jsonEditorRef" @change="handleCodeEditorValueChange"></CodeEditor>
+            </el-tab-pane>
             <el-tab-pane label="文档" name="docs">
               <NodeDocs/>
             </el-tab-pane>

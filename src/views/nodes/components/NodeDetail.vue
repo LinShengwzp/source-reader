@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {FormGroupItem, FormModelItem, NodeInfo, NodeSourceType, SRNodeInfo} from "@/utils/Models";
-import {reactive} from "vue";
+import {reactive, ref} from "vue";
 
 import DataEditor from "@/components/DataEditor.vue";
 import {detailForm, groupFromKeyName, modifyFromItem, moreForm} from "@/views/nodes/components/ModifyFormModel";
@@ -8,7 +8,8 @@ import {timeTools} from "@/utils/xbsTool/xbsTools";
 import {compressJson, parseJson, stringifyJson} from "@/utils/Strutil";
 import {ArrowLeftBold, CloseBold, Edit, Select} from "@element-plus/icons-vue";
 import SvgIcon from "@/components/SvgIcon/Index.vue";
-import {TabPaneName} from "element-plus";
+import {ElMessage, TabPaneName} from "element-plus";
+import {bookInfo, BookSource} from "@/utils/storage/Table";
 
 const props = defineProps({
   nodeInfo: {
@@ -17,7 +18,7 @@ const props = defineProps({
   }
 })
 
-const emits = defineEmits(['itemForce'])
+const emits = defineEmits(['itemForce', "valueChange"])
 
 interface NodeDetailInitData {
   node?: NodeInfo,
@@ -38,7 +39,14 @@ const initData: NodeDetailInitData = reactive({
     title: ''
   },
   modifyGroupFormType: false,
-  modifyGroupTabName: ''
+  modifyGroupTabName: '',
+})
+
+const existNodeConfirmRef = ref()
+const existNodeData = reactive({
+  dialogVisible: false,
+  coverNode: false,
+  hasSetCover: false,
 })
 
 interface GroupTabOperateData {
@@ -109,9 +117,36 @@ const changeValue = (item: FormModelItem, value: any) => {
 }
 
 /**
+ * 外部直接修改json
+ * @param json
+ * @param nodeName
+ */
+const changeJson = (json: string, nodeName: string) => {
+  const data = JSON.parse(json)
+
+  // 处理enable
+  if (!(typeof data['enable'] === 'boolean')) {
+    data['enable'] = !!data['enable']
+  }
+  if (data['lastModifyTime']) {
+    data['lastModifyTimeToLocal'] = timeTools.UnixWithSixDecimalToLocalTime(data['lastModifyTime'])
+  }
+
+  // 这里将数据转换成字符串用以编辑
+  const nodeJson = stringifyJson(data, ['httpHeaders']);
+  initData.nodeJson = {
+    ...{
+      sourceName: nodeName
+    }, ...nodeJson
+  }
+  submit()
+}
+
+/**
  * 清空面板
  */
 const clean = () => {
+  console.log("准备清除原有数据: ", initData.node, initData.nodeJson)
   submit()
   initData.node = {}
   initData.nodeJson = {
@@ -147,14 +182,16 @@ const hasConfigBtn = (configKey: string): boolean => {
 /**
  * 存储提交，如果没有存储过则存储并返回id
  */
-const submit = () => {
+const submit = async () => {
   const node = initData.nodeJson
+  handleChange({})
   // 存储
-  if (!initData.nodeJson || !initData.nodeJson.sourceName) {
-    const sourceJson = compressJson(node)
-    console.log("这里有数据", sourceJson)
+  if (!node || !node.sourceName || !!node.searchBook) {
+    const sourceJson: Record<string, SRNodeInfo> = {}
+    sourceJson[node.sourceName] = node
+    const json = compressJson(sourceJson);
     // 重新组合数据存储
-    const item: NodeInfo = {
+    const item: BookSource = {
       id: undefined,
       platform: 'StandarReader',
       sourceName: node['sourceName'],
@@ -162,14 +199,40 @@ const submit = () => {
       sourceUrl: node['sourceUrl'],
       enable: node['enable'],
       weight: node['weight'],
-      sourceJson: sourceJson,
+      sourceJson: json,
       authorId: node['authorId'],
       desc: node['desc'],
       lastModifyTime: node['lastModifyTime'],
       toTop: node['toTop'],
     }
-    console.log("准备存储：", item)
+
+    // 覆盖 || 设置不覆盖
+    if (existNodeData.coverNode || (existNodeData.hasSetCover && !existNodeData.coverNode)) {
+      const saveRes = await bookInfo.operates?.save(item, existNodeData.coverNode)
+      if (saveRes && saveRes.code) {
+        const {code} = saveRes
+        switch (code) {
+          case 'exist': {
+            if (!existNodeData.hasSetCover) {
+              existNodeData.dialogVisible = true
+              return;
+            }
+            break
+          }
+          case 'success': {
+            ElMessage.success("保存成功")
+            // 上级保存
+
+            return
+          }
+          case  'failure': {
+            ElMessage.error(saveRes?.msg)
+          }
+        }
+      }
+    }
   }
+
 }
 
 /**
@@ -322,6 +385,11 @@ const handleGroupTabsChange = (name: TabPaneName) => {
 
 }
 
+const handleChange = (e: any) => {
+  let jsonStr = JSON.stringify(initData.nodeJson, null, 2);
+  emits('valueChange', jsonStr)
+}
+
 const handleInput = (item: FormModelItem) => {
   let commitData = undefined
   if (initData.modifyItem) {
@@ -339,16 +407,26 @@ const handleInput = (item: FormModelItem) => {
   if (typeof commitData !== undefined) {
     emits('itemForce', item, commitData)
   }
-}
-const handleChange = (e: any) => {
-  console.log(e, '2444', initData.node?.sourceName)
+  handleChange(item)
 }
 const handleForce = (item: FormModelItem) => {
   handleInput(item)
 }
 
+/**
+ * 本地已存在节点，准备覆盖
+ * @param cover
+ */
+const coverNodeAndReload = (cover: boolean) => {
+  existNodeData.coverNode = cover
+  existNodeData.hasSetCover = true
+  existNodeData.dialogVisible = false
+  // 继续导入
+  submit()
+}
+
 defineExpose({
-  init, changeValue
+  init, changeValue, changeJson
 })
 </script>
 
@@ -628,6 +706,21 @@ defineExpose({
     </el-dialog>
 
   </div>
+  <el-dialog
+      ref="existNodeConfirmRef"
+      v-model="existNodeData.dialogVisible"
+      title="是否覆盖节点"
+      width="30%"
+      align-center>
+    <h3>已存在相同节点</h3>
+    <span>是否覆盖本地已存储的相同节点？</span>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="coverNodeAndReload(true)">覆盖</el-button>
+        <el-button type="primary" @click="coverNodeAndReload(false)">不覆盖</el-button>
+      </span>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped lang="scss">

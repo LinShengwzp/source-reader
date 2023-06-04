@@ -1,33 +1,29 @@
-import {ColQueryInfo, DataBaseOperate, DataColQueryInfo, DataTable, TableColumnInfo} from "@/utils/Models";
+import {
+    ColQueryInfo,
+    DataBaseOperate,
+    DataColQueryInfo,
+    DataOperateRes,
+    DataTable,
+    NodeInfo,
+    TableColumnInfo
+} from "@/utils/Models";
 import {count, exist, modify, query, queryOne, remove, save, saveBatch} from "@/utils/storage/Sqlite";
 
-const table = <T extends object>(tableName: 'bookSource' | 'bookGroup' | 'bookInfo' | 'bookChapter' | 'appConfig', columns: Array<TableColumnInfo>): DataTable => {
-    const voidFun = () => {
-    }
-    const table: DataTable = {
+const table = <T extends object>(tableName: 'bookSource' | 'bookGroup' | 'bookInfo' | 'bookChapter' | 'appConfig', columns: Array<TableColumnInfo>): DataTable<any> => {
+    const table: DataTable<T> = {
         tableName: tableName,
         IdKey: 'id',
         columns: columns,
-        operates: {
-            exist: voidFun,
-            query: voidFun,
-            one: voidFun,
-            count: voidFun,
-            save: voidFun,
-            saveBatch: voidFun,
-            modify: voidFun,
-            remove: voidFun
-        }
     }
-    const operates: DataBaseOperate = {
-        exist: (queryParams: ColQueryInfo[]): Promise<T | undefined> => exist(table, queryParams),
-        query: (queryParams: DataColQueryInfo): Promise<Array<T>> => query(table, queryParams),
-        one: (queryParams: ColQueryInfo[]): Promise<T> => queryOne<T>(table, queryParams),
-        count: (queryParams: ColQueryInfo[]): Promise<number> => count<T>(table, queryParams),
-        save: (data: T, cover: boolean = false): Promise<T> => save<T>(table, data, cover),
-        saveBatch: (dataList: Array<T>, cover: boolean = false): Promise<Array<T>> => saveBatch<T>(table, dataList, cover),
-        modify: (data: T): Promise<T> => modify<T>(table, data),
-        remove: (ids: string[] | number[]): Promise<Array<T>> => remove<T>(table, ids)
+    const operates: DataBaseOperate<T> = {
+        exist: (queryParams: ColQueryInfo[]): Promise<DataOperateRes<T | undefined>> => exist(table, queryParams),
+        query: (queryParams: DataColQueryInfo): Promise<DataOperateRes<Array<T>>> => query(table, queryParams),
+        one: (queryParams: ColQueryInfo[]): Promise<DataOperateRes<T>> => queryOne<T>(table, queryParams),
+        count: (queryParams: ColQueryInfo[]): Promise<DataOperateRes<number>> => count<T>(table, queryParams),
+        save: (data: T, cover: boolean): Promise<DataOperateRes<T>> => save<T>(table, data, cover),
+        saveBatch: (dataList: Array<T>, cover: boolean): Promise<DataOperateRes<Array<T>>> => saveBatch<T>(table, dataList, cover),
+        modify: (data: T): Promise<DataOperateRes<T>> => modify<T>(table, data),
+        remove: (ids: string[] | number[]): Promise<DataOperateRes<Array<T>>> => remove<T>(table, ids)
     }
     return {
         ...table, ...{
@@ -37,8 +33,7 @@ const table = <T extends object>(tableName: 'bookSource' | 'bookGroup' | 'bookIn
 }
 
 // 书源
-export interface BookSource {
-
+export interface BookSource extends NodeInfo {
 }
 
 const bookSourceColumns: Array<TableColumnInfo> = [
@@ -115,7 +110,7 @@ const bookSourceColumns: Array<TableColumnInfo> = [
     },
 
 ];
-export const bookSource: DataTable = table<BookSource>('bookSource', bookSourceColumns)
+export const bookSource: DataTable<BookSource> = table<BookSource>('bookSource', bookSourceColumns)
 
 // 分组
 export interface BookGroup {
@@ -169,7 +164,7 @@ const bookGroupColumns: Array<TableColumnInfo> = [
         comment: '排序'
     }
 ];
-export const bookGroup: DataTable = table<BookGroup>('bookGroup', bookGroupColumns)
+export const bookGroup: DataTable<BookGroup> = table<BookGroup>('bookGroup', bookGroupColumns)
 
 // 书籍
 export interface BookInfo {
@@ -293,7 +288,7 @@ const bookInfoColumns: Array<TableColumnInfo> = [
         default: 1,
         comment: "是否可用"
     }];
-export const bookInfo: DataTable = table<BookInfo>('bookInfo', bookInfoColumns)
+export const bookInfo: DataTable<BookInfo> = table<BookInfo>('bookInfo', bookInfoColumns)
 
 // 章节
 export interface BookChapter {
@@ -383,7 +378,7 @@ const bookChapterColumns: Array<TableColumnInfo> = [
         default: 0,
         comment: "排序,也是下标"
     }];
-export const bookChapter: DataTable = table<BookChapter>('bookChapter', bookChapterColumns)
+export const bookChapter: DataTable<BookChapter> = table<BookChapter>('bookChapter', bookChapterColumns)
 
 // 配置
 export interface AppConfig {
@@ -418,7 +413,7 @@ const appConfigColumns: Array<TableColumnInfo> = [
         comment: '是否默认配置，同种配置只能有一个是默认'
     },
 ];
-export const appConfig: DataTable = table<AppConfig>('appConfig', appConfigColumns)
+export const appConfig: DataTable<AppConfig> = table<AppConfig>('appConfig', appConfigColumns)
 
 export const tables: any = {
     bookSource: bookSource,
@@ -428,6 +423,7 @@ export const tables: any = {
     appConfig: appConfig,
 }
 
-export const getTable = (tableName: 'bookSource' | 'bookGroup' | 'bookInfo' | 'bookChapter' | 'appConfig'): DataTable => {
+export const getTable = (tableName: 'bookSource' | 'bookGroup' | 'bookInfo' | 'bookChapter' | 'appConfig'):
+    DataTable<BookSource | BookGroup | BookInfo | BookChapter | AppConfig> => {
     return tables[tableName]
 }

@@ -201,27 +201,37 @@ export interface DataApiAction {
 }
 
 /**
+ * 数据库操作结果
+ */
+export interface DataOperateRes<T> {
+    action: 'create' | 'exist' | 'query' | 'count' | 'save' | 'modify' | 'remove',
+    code: 'success' | 'failure' | 'exist',
+    msg?: string,
+    data?: T
+}
+
+/**
  * 数据库表操作
  */
-export interface DataBaseOperate {
-    exist: Function,
-    query: Function,
-    one: Function,
-    count: Function,
-    save: Function,
-    saveBatch: Function,
-    modify: Function,
-    remove: Function
+export interface DataBaseOperate<T> {
+    exist: (queryParams: ColQueryInfo[]) => Promise<DataOperateRes<T | undefined>>,
+    query: (queryParams: DataColQueryInfo) => Promise<DataOperateRes<Array<T>>>,
+    one: (queryParams: ColQueryInfo[]) => Promise<DataOperateRes<T>>,
+    count: (queryParams: ColQueryInfo[]) => Promise<DataOperateRes<number>>,
+    save: (data: T, cover: boolean) => Promise<DataOperateRes<T>>,
+    saveBatch: (dataList: Array<T>, cover: boolean) => Promise<DataOperateRes<Array<T>>>,
+    modify: (data: T) => Promise<DataOperateRes<T>>,
+    remove: (ids: string[] | number[]) => Promise<DataOperateRes<Array<T>>>
 }
 
 /**
  * 数据表
  */
-export interface DataTable {
+export interface DataTable<T> {
     tableName: string,
     IdKey: string,
     columns: Array<TableColumnInfo>,
-    operates: DataBaseOperate,
+    operates?: DataBaseOperate<T>,
     index?: string[][] // 索引
 }
 

@@ -1,5 +1,5 @@
 import Database from "tauri-plugin-sql-api";
-import {ColQueryInfo, DataColQueryInfo, DataTable, TableColumnInfo} from "@/utils/Models";
+import {ColQueryInfo, DataColQueryInfo, DataOperateRes, DataTable, TableColumnInfo} from "@/utils/Models";
 
 // sqlite. The path is relative to `tauri::api::path::BaseDirectory::App`.
 const db: Database = await Database.load("sqlite:reader.db");
@@ -25,7 +25,7 @@ interface ColumnsSort {
  * 检查表是否创建
  * @param table
  */
-const checkAndCreateTableSqlite = async (table: DataTable): Promise<DataTable> => {
+const checkAndCreateTableSqlite = async (table: DataTable<any>): Promise<DataTable<any>> => {
     const {tableName, columns} = table
     if (!tableName) {
         throw new Error(`table name is required`);
@@ -79,7 +79,7 @@ const checkAndCreateTableSqlite = async (table: DataTable): Promise<DataTable> =
  * @param query 查询条件
  * @returns {string}
  */
-const buildQuery = (table: DataTable, query: DataColQueryInfo): QueryBuild => {
+const buildQuery = (table: DataTable<any>, query: DataColQueryInfo): QueryBuild => {
     const cols: ColQueryInfo[] = [] // 存储查询条件
     const queryCols: string[] = [] // 存储查询列
     const sorts: ColumnsSort[] = [] // 存储排序列
@@ -173,7 +173,7 @@ const buildSaveColumns = <T extends object>(data: T): string => {
  * 创建数据库表
  * @param table
  */
-export const create = async (table: DataTable): Promise<DataTable> => {
+export const create = async (table: DataTable<any>): Promise<DataTable<any>> => {
     if (table && table.tableName && table.columns.length > 0) {
         return checkAndCreateTableSqlite(table)
     }
@@ -185,7 +185,7 @@ export const create = async (table: DataTable): Promise<DataTable> => {
  * @param table
  * @param queryParams
  */
-export const exist = async <T>(table: DataTable, queryParams: ColQueryInfo[]): Promise<T | undefined> => {
+export const exist = async <T>(table: DataTable<any>, queryParams: ColQueryInfo[]): Promise<DataOperateRes<T>> => {
     create(table)
     const tableCols: any = {}
     table.columns.forEach(q => {
@@ -201,41 +201,86 @@ export const exist = async <T>(table: DataTable, queryParams: ColQueryInfo[]): P
             }
         }
     })
-    return await queryOne(table, queryExistParams)
+    const queryRes = await queryOne<T>(table, queryExistParams);
+    if (queryRes.code === 'success') {
+        return {
+            action: "exist",
+            code: "success",
+            data: queryRes.data
+        }
+    } else {
+        return {
+            action: "exist",
+            code: "failure",
+            msg: queryRes.msg
+        }
+    }
 }
-export const query = async <T>(table: DataTable, query: DataColQueryInfo): Promise<Array<T>> => {
+export const query = async <T>(table: DataTable<any>, query: DataColQueryInfo): Promise<DataOperateRes<Array<T>>> => {
     create(table)
     const querySql: QueryBuild = buildQuery(table, query)
     const sql: string = `SELECT ${querySql.cols}
                          FROM ${table.tableName} ${querySql.where} ${querySql.sort} ${querySql.page} `;
     console.log(`execute query sql: [${sql}]`)
-    return await db.select<Array<T>>(sql)
+    try {
+        const selectRes = await db.select<Array<T>>(sql);
+        return {
+            action: "query",
+            code: "success",
+            data: selectRes
+        }
+    } catch (e) {
+        return {
+            action: "query",
+            code: "failure",
+            msg: e?.toString()
+        }
+    }
 }
-export const queryOne = async <T>(table: DataTable, queryParams: ColQueryInfo[]): Promise<T> => {
+export const queryOne = async <T>(table: DataTable<any>, queryParams: ColQueryInfo[]): Promise<DataOperateRes<T>> => {
     const queryRes = await query<T>(table, {
         columns: queryParams,
         page: {
             close: true,
         }
     })
-    if (queryRes) {
-        if (queryRes.length === 1) {
-            return queryRes[0]
+    if (queryRes.data) {
+        if (queryRes.data.length === 1) {
+            return {
+                action: "query",
+                code: "success",
+                data: queryRes.data[0]
+            }
         }
         throw new Error(`params for query one but more than one results: [${queryParams.length}]`)
     }
-    return {} as any;
+    return {
+        action: "query",
+        code: "failure"
+    };
 }
-export const count = async <T>(table: DataTable, queryParams: ColQueryInfo[]): Promise<number> => {
+export const count = async <T>(table: DataTable<any>, queryParams: ColQueryInfo[]): Promise<DataOperateRes<number>> => {
     const queryRes = await query<T>(table, {
         columns: queryParams,
         page: {
             close: true,
         }
     })
-    return queryRes.length;
+    if (queryRes.code === 'success') {
+        return {
+            action: "count",
+            code: "success",
+            data: queryRes.data?.length
+        }
+    } else {
+        return {
+            action: "count",
+            code: "failure",
+            msg: queryRes.msg
+        }
+    }
 }
-export const save = async <T extends object>(table: DataTable, data: T, cover: boolean = true): Promise<T> => {
+export const save = async <T extends object>(table: DataTable<any>, data: T, cover: boolean = false): Promise<DataOperateRes<T>> => {
     create(table)
     // 组合查重条件
     const queryCols: ColQueryInfo[] = Object.keys(data).map(key => {
@@ -245,13 +290,17 @@ export const save = async <T extends object>(table: DataTable, data: T, cover: b
         }
     })
     try {
-        const existEntity = await exist<T>(table, queryCols)
-        if (existEntity) {
+        const existRes = await exist<T>(table, queryCols)
+        if (existRes.code === 'success' && existRes.data) {
             // 不覆盖数据，将已存储的数据直接回写到list
             if (cover) {
-                return modify<T>(table, existEntity)
+                return modify<T>(table, existRes.data)
             } else {
-                return existEntity;
+                return {
+                    action: "exist",
+                    code: "exist",
+                    data: data
+                };
             }
         }
         // 数据不存在，需要存储
@@ -262,15 +311,23 @@ export const save = async <T extends object>(table: DataTable, data: T, cover: b
         db.execute('COMMIT');
         if (saveRes.rowsAffected) {
             (data as any)[table.IdKey] = saveRes.lastInsertId
-            return data;
+            return {
+                action: 'save',
+                code: "success",
+                data: data
+            };
         } else {
-            throw new Error(`save data [${data}] failue`)
+            return {
+                action: 'save',
+                code: "failure",
+                msg: `save data [${data}] failue`
+            }
         }
     } catch (e) {
         throw new Error(`save data [${data}] failue: ${e}`)
     }
 }
-export const saveBatch = async <T extends object>(table: DataTable, dataList: Array<T>, cover: boolean = true): Promise<Array<T>> => {
+export const saveBatch = async <T extends object>(table: DataTable<any>, dataList: Array<T>, cover: boolean = false): Promise<DataOperateRes<Array<T>>> => {
     create(table)
     let saveEntityList: Array<T> = []
     if (!cover) {
@@ -285,10 +342,10 @@ export const saveBatch = async <T extends object>(table: DataTable, dataList: Ar
                 }
             })
 
-            const existEntity = await exist<T>(table, queryCols)
-            if (existEntity) {
+            const existRes = await exist<T>(table, queryCols)
+            if (existRes.code === 'success' && existRes.data) {
                 // 不覆盖数据，将已存储的数据直接回写到list
-                dataList[index] = existEntity
+                dataList[index] = existRes.data
             } else {
                 // 数据不存在，需要存储
                 saveEntityList.push(data)
@@ -310,14 +367,22 @@ export const saveBatch = async <T extends object>(table: DataTable, dataList: Ar
             }
         })
         db.execute('COMMIT');
+        // 全部回写
+        return {
+            action: "save",
+            code: "success",
+            data: saveEntityList
+        };
     } catch (e) {
-        throw new Error(`save data failure: ${e}`)
+        return {
+            action: "save",
+            code: "failure",
+            msg: `save data failure: ${e}`
+        };
     }
 
-    // 全部回写
-    return dataList;
 }
-export const modify = async <T extends object>(table: DataTable, data: T): Promise<T> => {
+export const modify = async <T extends object>(table: DataTable<any>, data: T): Promise<DataOperateRes<T>> => {
     create(table)
     if (data.hasOwnProperty(table.IdKey)) {
         const tableCols = table.columns.map(col => col.name);
@@ -337,18 +402,33 @@ export const modify = async <T extends object>(table: DataTable, data: T): Promi
             let modifyRes = await db.execute(sql, Object.keys(data).map(key => (data as any)[key]))
             db.execute('COMMIT');
             if (modifyRes.rowsAffected > 0) {
-                return data
+                return {
+                    action: "modify",
+                    code: "failure",
+                    data: data
+                }
             } else {
-                throw new Error(`Modify data [${data}] failure.`)
+                return {
+                    action: "modify",
+                    code: "failure",
+                    msg: `Modify data [${data}] failure.`
+                }
             }
         } catch (e) {
-            throw new Error(`Modify data [${data}] failure: ${e}`)
+            return {
+                action: "modify",
+                code: "failure",
+                msg: `Modify data [${data}] failure: ${e}`
+            }
         }
-    } else {
-        throw new Error("Modify data without key property.")
+    }
+    return {
+        action: "modify",
+        code: "failure",
+        msg: "Modify data without key property."
     }
 }
-export const remove = async <T>(table: DataTable, ids: string[] | number[]): Promise<Array<T>> => {
+export const remove = async <T>(table: DataTable<any>, ids: string[] | number[]): Promise<DataOperateRes<Array<T>>> => {
     create(table)
     const removeItems: Array<T> = []
     const removeItem = async (id: string | number) => {
@@ -372,8 +452,8 @@ export const remove = async <T>(table: DataTable, ids: string[] | number[]): Pro
                 colName: table.IdKey,
                 data: id,
             }])
-            if (query) {
-                removeItems.push(query)
+            if (query.code === 'success' && query.data) {
+                removeItems.push(query.data)
                 removeItem(id)
             }
         } catch (e) {
@@ -381,5 +461,9 @@ export const remove = async <T>(table: DataTable, ids: string[] | number[]): Pro
         }
 
     })
-    return removeItems;
+    return {
+        action: "remove",
+        code: "success",
+        data: removeItems
+    };
 }

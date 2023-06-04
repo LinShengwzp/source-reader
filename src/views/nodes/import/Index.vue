@@ -18,12 +18,6 @@ const currFile: FileInfo = reactive({
     currPage: 0,
   }
 })
-const existNodeConfirmRef = ref()
-const existNodeData = reactive({
-  dialogVisible: false,
-  coverNode: false,
-  hasSetCover: false,
-})
 
 /**
  * 初始化
@@ -35,9 +29,6 @@ const init = () => {
   currFile.dataInfo = undefined
   currFile.nodeList = undefined
   currFile.menuList = undefined
-  existNodeData.dialogVisible = false
-  existNodeData.coverNode = false
-  existNodeData.hasSetCover = false
 }
 
 /**
@@ -140,18 +131,6 @@ const saveFileNode = () => {
   currFile.nodeList = nodeList
 }
 
-/**
- * 本地已存在节点，准备覆盖
- * @param cover
- */
-const coverNodeAndReload = (cover: boolean) => {
-  existNodeData.coverNode = cover
-  existNodeData.hasSetCover = true
-  existNodeData.dialogVisible = false
-  // 继续导入
-  saveFileNode()
-}
-
 defineExpose({
   init
 })
@@ -215,21 +194,6 @@ defineExpose({
       </transition>
     </div>
   </div>
-  <el-dialog
-      ref="existNodeConfirmRef"
-      v-model="existNodeData.dialogVisible"
-      title="是否覆盖节点"
-      width="30%"
-      align-center>
-    <h3>已存在相同节点</h3>
-    <span>是否覆盖本地已存储的相同节点？</span>
-    <template #footer>
-      <span class="dialog-footer">
-        <el-button @click="coverNodeAndReload(true)">覆盖</el-button>
-        <el-button type="primary" @click="coverNodeAndReload(false)">不覆盖</el-button>
-      </span>
-    </template>
-  </el-dialog>
 </template>
 
 <style scoped lang="scss">
