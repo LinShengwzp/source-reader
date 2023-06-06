@@ -4,6 +4,7 @@
               :style="{ height: '100%',textAlign:'left' }"
               :autofocus="true"
               :tabSize="4"
+              :disabled="disable"
               :options="codeMirrorOptions"
               @change="Change"
               :extensions="extensions"/>
@@ -30,7 +31,7 @@ let myTheme = EditorView.theme({
   },
   // 激活序列的背景色
   ".cm-activeLineGutter": {
-    backgroundColor: "#FAFAFA"
+    backgroundColor: "#444444"
   },
   //光标的颜色
   "&.cm-focused .cm-cursor": {
@@ -51,6 +52,7 @@ let myTheme = EditorView.theme({
 
 interface IProps {
   height?: string,
+  disable: boolean,
 }
 
 const codeMirrorOptions = {}
@@ -58,8 +60,10 @@ const codeMirrorOptions = {}
 // 接受的参数
 const props = withDefaults(defineProps<IProps>(), {
   height: '400px',
+  disable: false
 })
 const code = ref('');
+const enableEdit = ref(true);
 const extensions = [javascript(), myTheme];
 
 const emits = defineEmits(['change'])
@@ -72,9 +76,12 @@ const Change = (v: string) => {
 const init = (codeStr: string) => {
   code.value = codeStr
 }
+const getData = () => {
+  return code.value
+}
 
 defineExpose({
-  init
+  init, getData
 })
 
 </script>

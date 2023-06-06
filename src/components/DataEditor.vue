@@ -92,7 +92,9 @@ const handleInput = (value: any) => {
 };
 
 const handleChange = (e: any) => {
+  emits('update:modelValue', e); // 触发内部的 v-model 更新事件
   emits('onChange', e); // 触发自定义的 change 事件
+
 }
 
 const handleBlue = (e: any) => {

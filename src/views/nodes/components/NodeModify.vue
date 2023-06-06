@@ -2,11 +2,11 @@
 
 import {FormModelItem, NodeInfo} from "@/utils/Models";
 import {onBeforeUnmount, onMounted, reactive, ref} from "vue";
-import {ElNotification, TabsPaneContext} from "element-plus";
+import {ElMessage, ElNotification, TabsPaneContext} from "element-plus";
 import NodeDetail from "@/views/nodes/components/NodeDetail.vue";
 import CodeEditor from "@/components/CodeEditor.vue";
 import NodeDocs from "@/views/nodes/components/NodeDocs.vue";
-import {DArrowLeft} from "@element-plus/icons-vue";
+import {Check, DArrowLeft} from "@element-plus/icons-vue";
 
 interface NodeModifyInitData {
   nodeInfoList: NodeInfo[],
@@ -34,6 +34,10 @@ const style = reactive({
     transform: "rotate(180deg)",
     transition: "all .3s"
   }
+})
+
+const jsonEditor = reactive({
+  enableEditor: false
 })
 
 
@@ -143,10 +147,12 @@ const handleCodeEditorValueChange = (code: string) => {
 
 /**
  * 直接修改JSON
- * @param json
  */
-const handleJsonEditorValueChange = (json: string) => {
+const handleSetJsonEditorData = () => {
   // nodeDetailRef.value.changeJson(json, initData.currNodeName)
+  // 获取编辑器中的json
+  const jsonData = jsonEditorRef.value.getData()
+  ElMessage.warning("请谨慎提交")
 }
 
 /**
@@ -201,7 +207,24 @@ defineExpose({
                    type="card"
                    class="tool-tabs">
             <el-tab-pane label="JSON" name="json">
-              <CodeEditor ref="jsonEditorRef" @change="handleCodeEditorValueChange"></CodeEditor>
+              <CodeEditor ref="jsonEditorRef" @change="handleCodeEditorValueChange"
+                          :disable="!jsonEditor.enableEditor"></CodeEditor>
+              <div class="json-editor-tool">
+                <transition name="slide">
+                  <el-switch class="enable-edit"
+                             v-model="jsonEditor.enableEditor"
+                             inline-prompt
+                             active-text="编辑"
+                             inactive-text="禁用"/>
+                </transition>
+
+                <transition name="slide-right">
+                  <el-button type="primary" v-show="jsonEditor.enableEditor"
+                             :icon="Check as any"
+                             @click="handleSetJsonEditorData"
+                             circle/>
+                </transition>
+              </div>
             </el-tab-pane>
             <el-tab-pane label="文档" name="docs">
               <NodeDocs/>
@@ -258,6 +281,28 @@ defineExpose({
       flex: 1;
       display: inline-block;
       overflow: scroll;
+      position: relative;
+
+      .json-editor-tool {
+        position: absolute;
+        bottom: 1rem;
+        right: 1rem;
+        width: 6rem;
+        height: 3rem;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        justify-items: center;
+        align-items: center;
+
+        .editor-submit {
+          flex: 1;
+        }
+
+        .enable-edit {
+          flex: 4;
+        }
+      }
 
       div {
         height: 100%;

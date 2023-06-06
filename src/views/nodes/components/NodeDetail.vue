@@ -85,7 +85,7 @@ const init = (node: NodeInfo) => {
     }
 
     // 这里将数据转换成字符串用以编辑
-    const nodeJson = stringifyJson(data, ['httpHeaders']);
+    const nodeJson = stringifyJson(data, stringifyKeys);
     initData.nodeJson = {
       ...{
         sourceName: sourceName
@@ -133,7 +133,7 @@ const changeJson = (json: string, nodeName: string) => {
   }
 
   // 这里将数据转换成字符串用以编辑
-  const nodeJson = stringifyJson(data, ['httpHeaders']);
+  const nodeJson = stringifyJson(data, stringifyKeys);
   initData.nodeJson = {
     ...{
       sourceName: nodeName
