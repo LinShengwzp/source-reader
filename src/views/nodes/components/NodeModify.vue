@@ -152,7 +152,7 @@ const handleSetJsonEditorData = () => {
   // nodeDetailRef.value.changeJson(json, initData.currNodeName)
   // 获取编辑器中的json
   const jsonData = jsonEditorRef.value.getData()
-  ElMessage.warning("请谨慎提交")
+  ElMessage.warning("请谨慎保存")
 }
 
 /**
@@ -230,7 +230,7 @@ defineExpose({
               <NodeDocs/>
             </el-tab-pane>
             <el-tab-pane label="代码编辑器" name="code">
-              <CodeEditor ref="codeEditorRef" @change="handleCodeEditorValueChange"></CodeEditor>
+              <CodeEditor ref="codeEditorRef" :disable="false" @change="handleCodeEditorValueChange"></CodeEditor>
             </el-tab-pane>
             <el-tab-pane label="分类工具" name="cat">
               <div class="iframe-box">

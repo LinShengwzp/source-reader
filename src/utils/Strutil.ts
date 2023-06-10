@@ -66,6 +66,28 @@ export const parseJson = (obj: any, keys: string[]): object => {
 }
 
 /**
+ * 处理整个json，转string
+ * @param obj
+ * @param keys
+ */
+export const parseJsonDeepToString = (obj: any, keys: string[]): string => {
+    if (obj) {
+        return JSON.stringify({...obj}, (key, value) => {
+            // 打印
+            if (keys.indexOf(key) >= 0) {
+                // 单独照看
+                if (typeof value === 'string') {
+                    console.error(`current value [${value}] of key [${key}] must be an object rather then a string`)
+                    value = JSON.parse(value)
+                }
+            }
+            return value
+        }, 2)
+    }
+    return obj
+}
+
+/**
  * 处理json内部的object
  * @param obj
  */

@@ -105,7 +105,7 @@ const saveFileNode = () => {
       continue
     }
     const dataItem: any = {}
-    dataItem[name] = node
+    dataItem[node['sourceName']] = node
     let sourceJson = compressJson(dataItem);
     const item: NodeInfo = {
       id: undefined,

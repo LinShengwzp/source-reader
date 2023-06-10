@@ -5,7 +5,7 @@ import {reactive, ref} from "vue";
 import DataEditor from "@/components/DataEditor.vue";
 import {detailForm, groupFromKeyName, modifyFromItem, moreForm} from "@/views/nodes/components/ModifyFormModel";
 import {timeTools} from "@/utils/xbsTool/xbsTools";
-import {compressJson, parseJson, stringifyJson} from "@/utils/Strutil";
+import {compressJson, parseJson, parseJsonDeepToString, stringifyJson} from "@/utils/Strutil";
 import {ArrowLeftBold, CloseBold, Edit, Select} from "@element-plus/icons-vue";
 import SvgIcon from "@/components/SvgIcon/Index.vue";
 import {ElMessage, TabPaneName} from "element-plus";
@@ -63,7 +63,7 @@ const groupTabOperate: GroupTabOperateData = reactive({
   removeName: ''
 })
 
-const stringifyKeys: string[] = ['requestInfo', 'httpHeaders', 'moreKeys'];
+const stringifyKeys: string[] = ['httpHeaders', 'moreKeys'];
 const init = (node: NodeInfo) => {
   clean()
   initData.node = node
@@ -93,7 +93,8 @@ const init = (node: NodeInfo) => {
     }
     submit()
   } catch (e) {
-    console.error("parse json failure")
+    ElMessage.error(`解析失败: [${e}]`)
+    console.error("parse json failure", e)
     return;
   }
 }
@@ -386,7 +387,9 @@ const handleGroupTabsChange = (name: TabPaneName) => {
 }
 
 const handleChange = (e: any) => {
-  let jsonStr = JSON.stringify(initData.nodeJson, null, 2);
+  const s = JSON.stringify(initData.nodeJson, null, 2);
+  const s2 = parseJsonDeepToString(initData.nodeJson, stringifyKeys)
+  let jsonStr = s2;
   emits('valueChange', jsonStr)
 }
 
