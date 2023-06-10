@@ -387,10 +387,7 @@ const handleGroupTabsChange = (name: TabPaneName) => {
 }
 
 const handleChange = (e: any) => {
-  const s = JSON.stringify(initData.nodeJson, null, 2);
-  const s2 = parseJsonDeepToString(initData.nodeJson, stringifyKeys)
-  let jsonStr = s2;
-  emits('valueChange', jsonStr)
+  emits('valueChange', parseJsonDeepToString(initData.nodeJson, stringifyKeys))
 }
 
 const handleInput = (item: FormModelItem) => {

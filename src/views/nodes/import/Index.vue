@@ -4,7 +4,7 @@ import {UploadFilled} from '@element-plus/icons-vue'
 import {ElMessage, UploadFile, UploadFiles} from "element-plus";
 import {FileInfo, FileType, NodeInfo, SRNodeInfo} from "@/utils/Models";
 import {analyseJsonFile, analyseXbsFile} from "@/utils/xbsTool/xbsFileTools";
-import {compressJson} from "@/utils/Strutil";
+import {compressJson, parseJsonDeepToString} from "@/utils/Strutil";
 
 import NodeList from "@/views/nodes/components/NodeList.vue";
 
@@ -80,7 +80,7 @@ const handleFileRemove = (uploadFile: UploadFile, uploadFiles: UploadFiles) => {
 const analyseFile = async () => {
   try {
     if (currFile.fileType === FileType.XBS) {
-      currFile.analyseNode = await analyseXbsFile(currFile.file)
+      currFile.analyseNode = await analyseXbsFile(currFile.file);
     } else {
       analyseJsonFile(currFile.file)
     }
