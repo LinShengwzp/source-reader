@@ -203,7 +203,7 @@ const submit = async () => {
       sourceJson: json,
       authorId: node['authorId'],
       desc: node['desc'],
-      lastModifyTime: node['lastModifyTime'],
+      lastModifyTime: timeTools.localTimeToUnixWithSixDecimal(new Date()),
       toTop: node['toTop'],
     }
 

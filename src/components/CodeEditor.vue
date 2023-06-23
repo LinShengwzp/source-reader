@@ -19,28 +19,28 @@ import {EditorView} from "@codemirror/view"
 let myTheme = EditorView.theme({
   // 输入的字体颜色
   "&": {
-    color: "#0052D9",
+    color: "#15a151",
     backgroundColor: "#FFFFFF"
   },
   ".cm-content": {
-    caretColor: "#0052D9",
+    caretColor: "#efefef",
   },
   // 激活背景色
   ".cm-activeLine": {
-    backgroundColor: "#FAFAFA"
+    backgroundColor: "#c4c4c4"
   },
   // 激活序列的背景色
   ".cm-activeLineGutter": {
-    backgroundColor: "#444444"
+    backgroundColor: "#c4c4c4"
   },
   //光标的颜色
   "&.cm-focused .cm-cursor": {
-    borderLeftColor: "#0052D9"
+    borderLeftColor: "#000000"
   },
   // 选中的状态
   "&.cm-focused .cm-selectionBackground, ::selection": {
-    backgroundColor: "#0052D9",
-    color: '#c4c4c4'
+    backgroundColor: "#606060",
+    color: '#0052D9'
   },
   // 左侧侧边栏的颜色
   ".cm-gutters": {
