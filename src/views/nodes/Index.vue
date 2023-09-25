@@ -52,6 +52,7 @@ const handleNodeOperateClick = (operate: NodeOperate) => {
   }
 }
 const handleTabClick = (pane: TabsPaneContext, ev: Event) => {
+  nodeTabChangeEvent.emit(pane.paneName as string)
 }
 
 </script>

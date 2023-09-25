@@ -96,7 +96,7 @@ export const SourcePlatform: Array<TypeInfo> = [
 
 export const SourceTemplate: SRNodeInfo = {
     "chapterContent": {"actionID": "chapterContent", "parserID": "DOM"},
-    "enable": 1,
+    "enable": "1",
     "shupingList": {"actionID": "shupingList", "parserID": "DOM"},
     "bookDetail": {"actionID": "bookDetail", "parserID": "DOM"},
     "shudanList": [],
@@ -155,7 +155,7 @@ export interface NodeInfo {
     lastModifyTime?: string,
     toTop?: string,
     sourceJson?: string,
-    enable?: number,
+    enable?: string, // 必须转成 string 否则会导致导入之后无法修改是否启动
 }
 
 /**
@@ -316,7 +316,7 @@ export interface SRNodeInfo {
     sourceName: string,
     sourceType?: string,
     authorId?: string,
-    enable?: number,
+    enable?: string,
     weight?: string,
     sourceUrl?: string,
     desc?: string,

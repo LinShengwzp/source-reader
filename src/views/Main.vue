@@ -30,7 +30,7 @@ onMounted(() => {
  */
 const menuChang = (menu: MenuItem) => {
   initData.currMenu = menu
-  console.log(`current menu: ${initData.currMenu}`)
+  console.debug(`current menu: ${initData.currMenu}`)
   router.push({
     name: menu.name
   })

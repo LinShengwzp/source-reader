@@ -1,30 +1,30 @@
 <script setup lang="ts">
 
 import {FormModelItem, NodeInfo} from "@/utils/Models";
-import {onBeforeUnmount, onMounted, reactive, ref} from "vue";
+import {computed, ComputedRef, onBeforeUnmount, onMounted, reactive, ref} from "vue";
 import {ElMessage, ElNotification, TabsPaneContext} from "element-plus";
 import NodeDetail from "@/views/nodes/components/NodeDetail.vue";
 import CodeEditor from "@/components/CodeEditor.vue";
 import NodeDocs from "@/views/nodes/components/NodeDocs.vue";
 import {Check, DArrowLeft} from "@element-plus/icons-vue";
+import {nodeXsGgSelectEvent} from "@/bus";
+import {nodeStore} from '@/store'
 
 interface NodeModifyInitData {
-  nodeInfoList: NodeInfo[],
-  currNode: number,
-  currNodeName: string,
   activeToolName: 'json' | 'docs' | 'cat' | 'code',
   forceItem?: FormModelItem
   showTool: boolean,
 }
 
+const nodeState = nodeStore()
 const nodeDetailRef = ref()
 const modifyToolRef = ref()
 const jsonEditorRef = ref()
 const codeEditorRef = ref()
+
+const nodeInfoList = computed(() => nodeState.editNodeList || [])
+
 const initData: NodeModifyInitData = reactive({
-  nodeInfoList: [],
-  currNode: 0,
-  currNodeName: '',
   activeToolName: 'json',
   showTool: true,
 })
@@ -40,7 +40,6 @@ const jsonEditor = reactive({
   enableEditor: false
 })
 
-
 onMounted(() => {
   handleResize()
   window.addEventListener('resize', handleResize);
@@ -51,70 +50,21 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
 });
 
+// TODO 从这里开始重写，将节点打开之后，直接存储在 store 中，并直接存储 NodeInfo，此时在store中直接处理成json字符串；
+// TODO 代码编辑器中则直接编辑这段字符串，保存提交之后拿这段再回去更新 store 的 NodeInfo
+// 使得全局在编辑的json字符串只有一个，而编辑列表可以有多个
 const init = (node: NodeInfo) => {
   if (!node || !node.sourceName) {
     return
   }
-  let hasNode = false
-  for (let index = 0; index < initData.nodeInfoList.length; index++) {
-    const item = initData.nodeInfoList[index]
-    if (item.sourceName === node.sourceName) {
-      initData.currNode = index
-      initData.currNodeName = node.sourceName
-      hasNode = true
-      break
-    }
-  }
-  if (!hasNode) {
-    if (initData.nodeInfoList.length > 30) {
-      ElNotification({
-        title: '标签页过多',
-        message: '别开太多标签',
-        type: 'error',
-      })
-      return;
-    }
-    initData.nodeInfoList.push(node)
-    initData.currNode = initData.nodeInfoList.length
-    initData.currNodeName = node.sourceName
-    selectNode(node)
-  } else {
-    selectNode(node)
-  }
-}
-
-/**
- * 切换tab
- * @param tab
- * @param event
- */
-const handleNodeTabClick = (tab: TabsPaneContext, event: Event) => {
-  initData.nodeInfoList.forEach((item, index) => {
-    if (item.sourceName === tab.paneName) {
-      initData.currNode = index
-      initData.currNodeName = item.sourceName || ''
-      selectNode(item)
-    }
+  // 当前节点是否已经打开
+  const hasNode = nodeState.addEditNode(node, () => {
+    ElNotification({
+      title: '标签页过多',
+      message: '别开太多标签',
+      type: 'error',
+    })
   })
-}
-
-const selectNode = (node: NodeInfo) => {
-  nodeDetailRef.value.init(node)
-}
-
-/**
- * 移除tab
- * @param targetName
- */
-const handleNodeTabRemove = (targetName: string) => {
-  initData.nodeInfoList = initData.nodeInfoList.filter((item) => !(item.sourceName === targetName))
-  if (initData.currNodeName === targetName) {
-    initData.currNode = 0
-    if (initData.nodeInfoList.length > 0) {
-      initData.currNodeName = initData.nodeInfoList[0].sourceName || '空白节点'
-      selectNode(initData.nodeInfoList[0])
-    }
-  }
 }
 
 /**
@@ -124,7 +74,7 @@ const handleNodeTabRemove = (targetName: string) => {
  */
 const handleFormItemForce = (item: FormModelItem, value: any) => {
   initData.forceItem = item
-  console.log("当前force", item)
+  console.debug("当前force", item)
   if (item.type === 'text') {
     initData.activeToolName = 'code'
     codeEditorRef.value.init(value)
@@ -133,17 +83,13 @@ const handleFormItemForce = (item: FormModelItem, value: any) => {
   }
 }
 
-const handleJsonChange = (json: object) => {
-  jsonEditorRef.value.init(json)
-}
+const handleJsonChange = (json: object) => jsonEditorRef.value.init(json)
 
 /**
  * 代码编辑器数据回填
  * @param code
  */
-const handleCodeEditorValueChange = (code: string) => {
-  nodeDetailRef.value.changeValue(initData.forceItem, code)
-}
+const handleCodeEditorValueChange = (code: string) => nodeDetailRef.value.changeValue(initData.forceItem, code)
 
 /**
  * 直接修改JSON
@@ -152,16 +98,15 @@ const handleSetJsonEditorData = () => {
   // nodeDetailRef.value.changeJson(json, initData.currNodeName)
   // 获取编辑器中的json
   const jsonData = jsonEditorRef.value.getData()
-  ElMessage.warning("请谨慎保存")
+  ElMessage.warning("直接编辑内容无法做详细校验，可能会导致无法使用。请谨慎保存")
+  // 保存一个副本，如果发现有问题，则提示有问题
+  nodeDetailRef.value.changeJson(jsonData, nodeState.currEditName)
 }
 
 /**
  * 重置清理
  */
-const clean = () => {
-  initData.nodeInfoList = []
-  initData.currNode = 0
-}
+const clean = nodeState.clear()
 
 /**
  * 监听屏幕高度
@@ -181,11 +126,11 @@ defineExpose({
 
 <template>
   <div class="node-modify-box">
-    <el-tabs v-model="initData.currNodeName"
+    <el-tabs v-model="nodeState.currEditName"
              closable class="node-tabs"
-             @tab-click="handleNodeTabClick"
-             @tab-remove="handleNodeTabRemove">
-      <el-tab-pane v-for="(node, index) in initData.nodeInfoList"
+             @tab-click="(tab: TabsPaneContext, event: Event) => nodeState.setCurrEdit(tab.paneName, 'name')"
+             @tab-remove="(targetName: string) => nodeState.delEditNode(targetName)">
+      <el-tab-pane v-for="(node, index) in nodeState.editNodeList"
                    :label="node.sourceName"
                    :name="node.sourceName || '空白节点'"
                    :key="index">
@@ -193,7 +138,7 @@ defineExpose({
     </el-tabs>
 
     <div class="modify-box" :style="{height: `${screenHeight - ((screenHeight/10) + 200)}px`}"
-         v-show="initData.nodeInfoList.length > 0 && initData.currNodeName">
+         v-show="nodeState.editNodeList?.length > 0 && nodeState.currEditName">
       <div class="node-modify">
         <NodeDetail @itemForce="handleFormItemForce"
                     @valueChange="handleJsonChange"

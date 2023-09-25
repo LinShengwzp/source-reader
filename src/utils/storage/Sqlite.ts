@@ -48,9 +48,9 @@ const checkAndCreateTableSqlite = async (table: DataTable<any>): Promise<DataTab
                  (
                      ${buildColumns(columns)}
                  )`
-            console.log('execute sql to create table: \n', createSql)
+            console.debug('execute sql to create table: \n', createSql)
             let res = await db.execute(createSql);
-            console.log(`table [${tableName}] created result : [rowsAffected:${res.rowsAffected}, lastInsertId:${res.lastInsertId}`)
+            console.debug(`table [${tableName}] created result : [rowsAffected:${res.rowsAffected}, lastInsertId:${res.lastInsertId}`)
             return table
         }
     } catch (e: any) {
@@ -221,7 +221,7 @@ export const query = async <T>(table: DataTable<any>, query: DataColQueryInfo): 
     const querySql: QueryBuild = buildQuery(table, query)
     const sql: string = `SELECT ${querySql.cols}
                          FROM ${table.tableName} ${querySql.where} ${querySql.sort} ${querySql.page} `;
-    console.log(`execute query sql: [${sql}]`)
+    console.debug(`execute query sql: [${sql}]`)
     try {
         const selectRes = await db.select<Array<T>>(sql);
         return {

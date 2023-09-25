@@ -27,9 +27,11 @@ VMdEditor.use(githubTheme, {
     Hljs: hljs,
 });
 
+// Pinia
+import {createPinia} from 'pinia'
 
 const app = createApp(App);
-app.use(ElementPlus).use(router).component('svg-icon', SvgIcon).use(VMdEditor)
+app.use(createPinia()).use(ElementPlus).use(router).component('svg-icon', SvgIcon).use(VMdEditor)
 
 // 引入 element 图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
@@ -37,3 +39,4 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 }
 
 app.mount("#app");
+

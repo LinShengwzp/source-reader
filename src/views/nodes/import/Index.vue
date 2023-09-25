@@ -4,9 +4,10 @@ import {UploadFilled} from '@element-plus/icons-vue'
 import {ElMessage, UploadFile, UploadFiles} from "element-plus";
 import {FileInfo, FileType, NodeInfo, SRNodeInfo} from "@/utils/Models";
 import {analyseJsonFile, analyseXbsFile} from "@/utils/xbsTool/xbsFileTools";
-import {compressJson, parseJsonDeepToString} from "@/utils/Strutil";
+import {compressJson} from "@/utils/Strutil";
 
 import NodeList from "@/views/nodes/components/NodeList.vue";
+import {nodeFileSelectEvent} from "@/bus";
 
 const fileUploadRef = ref()
 const nodeListRef = ref()
@@ -37,7 +38,7 @@ const init = () => {
  * @param fileList
  */
 const handleFileChange = async (file: UploadFile, fileList: UploadFiles) => {
-  console.log("select file", file)
+  console.debug("select file", file)
   init()
   if (!file || !file.name) {
     return
@@ -48,12 +49,16 @@ const handleFileChange = async (file: UploadFile, fileList: UploadFiles) => {
     currFile.fileType = FileType.JSON
   }
   currFile.file = file.raw
+
   currFile.dataInfo = [{
     fileName: file.name,
     filePath: file.name,
     nodeCount: 0,
     fileType: currFile.fileType ? "JSON 文件" : "XBS 文件"
   }]
+
+  // 通知
+  nodeFileSelectEvent.emit(file)
 
   // 解析文件
   await analyseFile()
@@ -113,7 +118,7 @@ const saveFileNode = () => {
       sourceName: node['sourceName'],
       sourceType: node['sourceType'],
       sourceUrl: node['sourceUrl'],
-      enable: node['enable'],
+      enable: String(node['enable']),
       weight: node['weight'],
       sourceJson: sourceJson,
       authorId: node['authorId'],
@@ -145,7 +150,8 @@ defineExpose({
                    v-show="!currFile.file"
                    accept=".xbs,.json"
                    :auto-upload="false"
-                   :limit="1" drag
+                   :limit="1"
+                   :drag="true"
                    :show-file-list="false"
                    @change="handleFileChange"
                    :before-upload="() => false">

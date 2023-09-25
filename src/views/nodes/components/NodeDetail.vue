@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import {FormGroupItem, FormModelItem, NodeInfo, NodeSourceType, SRNodeInfo} from "@/utils/Models";
-import {reactive, ref} from "vue";
+import { FormGroupItem, FormModelItem, NodeInfo, NodeSourceType, SRNodeInfo } from "@/utils/Models";
+import { reactive, ref } from "vue";
 
 import DataEditor from "@/components/DataEditor.vue";
-import {detailForm, groupFromKeyName, modifyFromItem, moreForm} from "@/views/nodes/components/ModifyFormModel";
-import {timeTools} from "@/utils/xbsTool/xbsTools";
-import {compressJson, parseJson, parseJsonDeepToString, stringifyJson} from "@/utils/Strutil";
-import {ArrowLeftBold, CloseBold, Edit, Select} from "@element-plus/icons-vue";
+import { detailForm, groupFromKeyName, modifyFromItem, moreForm } from "@/views/nodes/components/ModifyFormModel";
+import { timeTools } from "@/utils/xbsTool/xbsTools";
+import { compressJson, parseJson, parseJsonDeepToString, stringifyJson } from "@/utils/Strutil";
+import { ArrowLeftBold, CloseBold, Edit, Select } from "@element-plus/icons-vue";
 import SvgIcon from "@/components/SvgIcon/Index.vue";
-import {ElMessage, TabPaneName} from "element-plus";
-import {bookInfo, BookSource} from "@/utils/storage/Table";
+import { ElMessage, TabPaneName } from "element-plus";
+import { bookInfo, BookSource } from "@/utils/storage/Table";
+import { nodeXsGgSelectEvent } from "@/bus";
 
 const props = defineProps({
   nodeInfo: {
@@ -64,12 +65,19 @@ const groupTabOperate: GroupTabOperateData = reactive({
 })
 
 const stringifyKeys: string[] = ['httpHeaders', 'moreKeys'];
+
+// 监听node节点变动
+nodeXsGgSelectEvent.on((node: NodeInfo) => {
+  console.debug("初始化编辑的node节点", node)
+  init(node)
+})
+
 const init = (node: NodeInfo) => {
   clean()
   initData.node = node
 
   // 处理json
-  const {sourceName, sourceJson} = initData.node
+  const { sourceName, sourceJson } = initData.node
   if (!sourceJson || !sourceName) {
     return
   }
@@ -123,6 +131,9 @@ const changeValue = (item: FormModelItem, value: any) => {
  * @param nodeName
  */
 const changeJson = (json: string, nodeName: string) => {
+  // 存储当前已有的数据作为备份，以防数据有误
+  const oldJsonData = compressJson(initData.nodeJson);
+
   const data = JSON.parse(json)
 
   // 处理enable
@@ -147,7 +158,7 @@ const changeJson = (json: string, nodeName: string) => {
  * 清空面板
  */
 const clean = () => {
-  console.log("准备清除原有数据: ", initData.node, initData.nodeJson)
+  console.debug("准备清除原有数据: ", initData.node, initData.nodeJson)
   submit()
   initData.node = {}
   initData.nodeJson = {
@@ -211,7 +222,7 @@ const submit = async () => {
     if (existNodeData.coverNode || (existNodeData.hasSetCover && !existNodeData.coverNode)) {
       const saveRes = await bookInfo.operates?.save(item, existNodeData.coverNode)
       if (saveRes && saveRes.code) {
-        const {code} = saveRes
+        const { code } = saveRes
         switch (code) {
           case 'exist': {
             if (!existNodeData.hasSetCover) {
@@ -226,7 +237,7 @@ const submit = async () => {
 
             return
           }
-          case  'failure': {
+          case 'failure': {
             ElMessage.error(saveRes?.msg)
           }
         }
@@ -285,18 +296,18 @@ const detailBackAndSave = (save: boolean = true) => {
         let groupData = (initData.nodeJson as any)[initData.modifyItem]
         Object.keys(groupData).forEach((name: string) => {
           let data = groupData[name]
-          data = parseJson({...data}, stringifyKeys)
+          data = parseJson({ ...data }, stringifyKeys)
         })
       } else {
         // 不分组的数据
         let data = (initData.nodeJson as any)[initData.modifyItem]
-        data = parseJson({...data}, stringifyKeys)
+        data = parseJson({ ...data }, stringifyKeys)
       }
     }
   }
 
   initData.modifyItem = ''
-  initData.modifyItemForm = {title: ''}
+  initData.modifyItemForm = { title: '' }
   initData.modifyGroupFormType = false
   initData.modifyGroupTabName = ''
 }
@@ -307,7 +318,7 @@ const detailBackAndSave = (save: boolean = true) => {
  * @param action
  */
 const handleGroupTabsEdit = (targetName: TabPaneName | undefined,
-                             action: 'remove' | 'add') => {
+  action: 'remove' | 'add') => {
   switch (action) {
     case "add": {
       groupTabOperate.addTabName = ''
@@ -345,7 +356,7 @@ const handleAddGroup = (copy: boolean) => {
   if (copy) {
     const copyTargetName = initData.modifyItem === 'bookWorld' ? 'searchBook' : 'searchShudan'
     let copyTarget = stringifyJson(initData.nodeJson[copyTargetName], stringifyKeys)
-    newTabData = {...copyTarget, ...newTabData}
+    newTabData = { ...copyTarget, ...newTabData }
   }
   modifyItem[groupTabOperate.addTabName] = newTabData
 
@@ -386,6 +397,7 @@ const handleGroupTabsChange = (name: TabPaneName) => {
 
 }
 
+// 监听所有的数据变动，联动JSON编辑器进行数据更新
 const handleChange = (e: any) => {
   emits('valueChange', parseJsonDeepToString(initData.nodeJson, stringifyKeys))
 }
@@ -409,6 +421,7 @@ const handleInput = (item: FormModelItem) => {
   }
   handleChange(item)
 }
+
 const handleForce = (item: FormModelItem) => {
   handleInput(item)
 }
@@ -439,7 +452,7 @@ defineExpose({
           <el-col :span="2">
             <el-link style="height: 20px" :underline="false" @click="">
               <el-icon>
-                <Edit/>
+                <Edit />
               </el-icon>
             </el-link>
           </el-col>
@@ -448,36 +461,27 @@ defineExpose({
           </el-col>
 
           <el-col :span="1" :offset="8" style="display: flex;justify-content: center;">
-            <el-tooltip
-                class="btn-tooltip"
-                effect="light"
-                content="导出">
+            <el-tooltip class="btn-tooltip" effect="light" content="导出">
               <el-link style="height: 20px" :underline="false" @click="">
-                <svg-icon class="menu-icon" icon="export"/>
+                <svg-icon class="menu-icon" icon="export" />
               </el-link>
             </el-tooltip>
           </el-col>
           <el-col :span="1">
-            <el-tooltip
-                class="btn-tooltip"
-                effect="light"
-                content="保存">
+            <el-tooltip class="btn-tooltip" effect="light" content="保存">
               <el-link :underline="false" @click="">
                 <el-icon>
-                  <Select/>
+                  <Select />
                 </el-icon>
               </el-link>
             </el-tooltip>
           </el-col>
 
           <el-col :span="1">
-            <el-tooltip
-                class="btn-tooltip"
-                effect="light"
-                content="取消">
+            <el-tooltip class="btn-tooltip" effect="light" content="取消">
               <el-link :underline="false" @click="">
                 <el-icon>
-                  <CloseBold/>
+                  <CloseBold />
                 </el-icon>
               </el-link>
             </el-tooltip>
@@ -485,34 +489,23 @@ defineExpose({
         </el-row>
 
         <div class="modify-box">
-          <el-form ref="nodeInfoFormRef"
-                   label-width="20%"
-                   :model="initData.nodeJson">
+          <el-form ref="nodeInfoFormRef" label-width="20%" :model="initData.nodeJson">
 
             <el-divider content-position="left">基础信息</el-divider>
 
-            <DataEditor v-for="item in modifyFromItem"
-                        :type="item.type"
-                        :label="item.label"
-                        :name="item.model"
-                        :help="item.help"
-                        :placeholder="item.placeholder"
-                        :options="item.options"
-                        v-model:model-value="initData.nodeJson[item.model]"
-                        @input="handleInput(item)"
-                        @onChange="handleChange"
-                        @onForce="handleForce(item)"
-                        clearable/>
+            <DataEditor v-for="item in modifyFromItem" :key="item.name" :type="item.type" :label="item.label"
+              :name="item.model" :help="item.help" :placeholder="item.placeholder" :options="item.options"
+              v-model:model-value="initData.nodeJson[item.model]" @input="handleInput(item)" @onChange="handleChange"
+              @onForce="handleForce(item)" clearable />
 
             <el-row>
               <el-col :span="10">
                 <el-divider content-position="center">常用配置</el-divider>
                 <div class="config-btn-group">
-                  <el-form-item label-width="100px" v-for="itemKey in Object.keys(detailForm as any)"
-                                :key="itemKey"
-                                :label="detailForm[itemKey].title">
+                  <el-form-item label-width="100px" v-for="itemKey in Object.keys(detailForm as any)" :key="itemKey"
+                    :label="detailForm[itemKey].title">
                     <el-button v-if="hasConfigBtn(itemKey)" type="success"
-                               @click="modifyDetailItem('detailForm', itemKey)">
+                      @click="modifyDetailItem('detailForm', itemKey)">
                       已配置
                     </el-button>
                     <el-button v-else @click="modifyDetailItem('detailForm', itemKey)">未配置</el-button>
@@ -524,11 +517,9 @@ defineExpose({
                 <el-divider content-position="center">更多配置</el-divider>
                 <div class="config-btn-group">
                   <el-form-item label-width="100px" v-for="itemKey in Object.keys(moreForm as any)"
-                                @click="modifyDetailItem('moreForm', itemKey)"
-                                :label="moreForm[itemKey].title">
-                    <el-button v-if="hasConfigBtn(itemKey)"
-                               @click="modifyDetailItem('moreForm', itemKey)"
-                               type="success">已配置
+                    @click="modifyDetailItem('moreForm', itemKey)" :label="moreForm[itemKey].title">
+                    <el-button v-if="hasConfigBtn(itemKey)" @click="modifyDetailItem('moreForm', itemKey)"
+                      type="success">已配置
                     </el-button>
                     <el-button v-else>未配置</el-button>
                   </el-form-item>
@@ -548,7 +539,7 @@ defineExpose({
           <el-col :span="2">
             <el-link :underline="false" @click="detailBackAndSave(false)">
               <el-icon>
-                <ArrowLeftBold/>
+                <ArrowLeftBold />
               </el-icon>
             </el-link>
           </el-col>
@@ -557,26 +548,20 @@ defineExpose({
           </el-col>
 
           <el-col :span="1" :offset="7">
-            <el-tooltip
-                class="btn-tooltip"
-                effect="light"
-                content="保存">
+            <el-tooltip class="btn-tooltip" effect="light" content="保存">
               <el-link :underline="false" @click="detailBackAndSave">
                 <el-icon>
-                  <Select/>
+                  <Select />
                 </el-icon>
               </el-link>
             </el-tooltip>
           </el-col>
 
           <el-col :span="1">
-            <el-tooltip
-                class="btn-tooltip"
-                effect="light"
-                content="取消">
+            <el-tooltip class="btn-tooltip" effect="light" content="取消">
               <el-link :underline="false" @click="detailBackAndSave(false)">
                 <el-icon>
-                  <CloseBold/>
+                  <CloseBold />
                 </el-icon>
               </el-link>
             </el-tooltip>
@@ -585,34 +570,23 @@ defineExpose({
 
         <div class="detail-form-box">
           <div class="modify-detail-item" v-if="!initData.modifyGroupFormType">
-            <el-form
-                ref="detailInfoFrom"
-                label-width="30%"
-                :model="initData.nodeJson">
+            <el-form ref="detailInfoFrom" label-width="30%" :model="initData.nodeJson">
 
               <div v-for="group in initData.modifyItemForm.formGroups" :key="group.title">
                 <el-divider content-position="left">{{ group.title }}</el-divider>
 
                 <div class="detail-tips">
                   <ul>
-                    <li class="detail-tip" v-for="tip in group.tips">
+                    <li class="detail-tip" v-for="(tip, index) in group.tips" :key="index">
                       {{ tip }}
                     </li>
                   </ul>
                 </div>
 
-                <DataEditor v-for="item in group.items"
-                            :type="item.type"
-                            :label="item.label"
-                            :name="item.model"
-                            :help="item.help"
-                            :placeholder="item.placeholder"
-                            :options="item.options"
-                            v-model:model-value="initData.nodeJson[initData.modifyItem][item.model]"
-                            @input="handleInput(item)"
-                            @onChange="handleChange"
-                            @onForce="handleForce(item)"
-                            clearable/>
+                <DataEditor v-for="item in group.items" :key="item.name" :type="item.type" :label="item.label"
+                  :name="item.model" :help="item.help" :placeholder="item.placeholder" :options="item.options"
+                  v-model:model-value="initData.nodeJson[initData.modifyItem][item.model]" @input="handleInput(item)"
+                  @onChange="handleChange" @onForce="handleForce(item)" clearable />
               </div>
 
             </el-form>
@@ -621,23 +595,15 @@ defineExpose({
           <div class="modify-group-item" v-else>
 
             <el-divider content-position="left">数据分组</el-divider>
-            <el-tabs
-                v-model="initData.modifyGroupTabName"
-                type="card"
-                editable
-                class="demo-tabs"
-                @tabChange="handleGroupTabsChange"
-                @edit="handleGroupTabsEdit">
-              <el-tab-pane
-                  v-for="tabName in Object.keys(initData.nodeJson[initData.modifyItem])"
-                  :key="tabName" :label="tabName" :name="tabName">
+            <el-tabs v-model="initData.modifyGroupTabName" type="card" editable class="demo-tabs"
+              @tabChange="handleGroupTabsChange" @edit="handleGroupTabsEdit">
+              <el-tab-pane v-for="tabName in Object.keys(initData.nodeJson[initData.modifyItem])" :key="tabName"
+                :label="tabName" :name="tabName">
               </el-tab-pane>
             </el-tabs>
 
-            <el-form v-if="initData.modifyGroupTabName"
-                     ref="groupInfoFrom"
-                     label-width="100px"
-                     :model="initData.nodeJson[initData.modifyItem][initData.modifyGroupTabName]">
+            <el-form v-if="initData.modifyGroupTabName" ref="groupInfoFrom" label-width="100px"
+              :model="initData.nodeJson[initData.modifyItem][initData.modifyGroupTabName]">
 
               <div v-for="group in initData.modifyItemForm.formGroups" :key="group.title">
                 <el-divider content-position="left">{{ group.title }}</el-divider>
@@ -650,18 +616,10 @@ defineExpose({
                   </ul>
                 </div>
 
-                <DataEditor v-for="item in group.items"
-                            :type="item.type"
-                            :label="item.label"
-                            :name="item.model"
-                            :help="item.help"
-                            :placeholder="item.placeholder"
-                            :options="item.options"
-                            v-model:model-value="initData.nodeJson[initData.modifyItem][initData.modifyGroupTabName][item.model]"
-                            @input="handleInput(item)"
-                            @onChange="handleChange"
-                            @onForce="handleForce(item)"
-                            clearable/>
+                <DataEditor v-for="item in group.items" :type="item.type" :label="item.label" :name="item.model"
+                  :help="item.help" :placeholder="item.placeholder" :options="item.options"
+                  v-model:model-value="initData.nodeJson[initData.modifyItem][initData.modifyGroupTabName][item.model]"
+                  @input="handleInput(item)" @onChange="handleChange" @onForce="handleForce(item)" clearable />
               </div>
 
             </el-form>
@@ -671,47 +629,32 @@ defineExpose({
       </div>
     </transition>
 
-    <el-dialog
-        v-model="groupTabOperate.showDialog"
-        title="添加分组"
-        width="30%"
-        :close-on-click-modal="false"
-        :close-on-press-escape="false"
-        :draggable="true"
-        align-center>
+    <el-dialog v-model="groupTabOperate.showDialog" title="添加分组" width="30%" :close-on-click-modal="false"
+      :close-on-press-escape="false" :draggable="true" align-center>
       <div>
-        <el-input placeholder="分组名称" v-model="groupTabOperate.addTabName"/>
+        <el-input placeholder="分组名称" v-model="groupTabOperate.addTabName" />
       </div>
       <template #footer>
-      <span class="dialog-footer">
-        <el-button @click="groupTabOperate.showDialog = false">取消</el-button>
-        <el-button type="success" @click="handleAddGroup(true)">复制搜索</el-button>
-        <el-button type="primary" @click="handleAddGroup(false)">添加分组</el-button>
-      </span>
+        <span class="dialog-footer">
+          <el-button @click="groupTabOperate.showDialog = false">取消</el-button>
+          <el-button type="success" @click="handleAddGroup(true)">复制搜索</el-button>
+          <el-button type="primary" @click="handleAddGroup(false)">添加分组</el-button>
+        </span>
       </template>
     </el-dialog>
 
-    <el-dialog
-        v-model="groupTabOperate.showRemove"
-        title="删除分组"
-        width="30%"
-        align-center>
+    <el-dialog v-model="groupTabOperate.showRemove" title="删除分组" width="30%" align-center>
       <span>是否删除分组 [{{ groupTabOperate.removeName }}] ？</span>
       <template #footer>
-      <span class="dialog-footer">
-        <el-button @click="groupTabOperate.showRemove = false">取消</el-button>
-        <el-button type="danger" @click="handleRemoveGroup">删除</el-button>
-      </span>
+        <span class="dialog-footer">
+          <el-button @click="groupTabOperate.showRemove = false">取消</el-button>
+          <el-button type="danger" @click="handleRemoveGroup">删除</el-button>
+        </span>
       </template>
     </el-dialog>
 
   </div>
-  <el-dialog
-      ref="existNodeConfirmRef"
-      v-model="existNodeData.dialogVisible"
-      title="是否覆盖节点"
-      width="30%"
-      align-center>
+  <el-dialog ref="existNodeConfirmRef" v-model="existNodeData.dialogVisible" title="是否覆盖节点" width="30%" align-center>
     <h3>已存在相同节点</h3>
     <span>是否覆盖本地已存储的相同节点？</span>
     <template #footer>
@@ -772,5 +715,4 @@ defineExpose({
     }
   }
 }
-
 </style>

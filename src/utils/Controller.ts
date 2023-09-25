@@ -9,6 +9,6 @@ export const service = async () => {
 export async function greet() {
     // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
     // const res = await invoke("greet", {name: "2333"});
-    // console.log(res, create(getTable('bookInfo')))
+    // console.debug(res, create(getTable('bookInfo')))
     // return res
 }
