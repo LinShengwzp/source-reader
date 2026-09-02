@@ -184,7 +184,7 @@ SourceDocument _source({
   Map<String, Object?> extra = const <String, Object?>{},
 }) {
   return SourceDocument.fromRaw(<String, Object?>{
-    if (name != null) 'sourceName': name,
+    'sourceName': ?name,
     'sourceType': 'text',
     'sourceUrl': 'https://example.com',
     'enable': '1',
