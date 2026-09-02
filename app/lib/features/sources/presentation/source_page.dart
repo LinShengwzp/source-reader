@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:source_reader/features/sources/application/source_controller.dart';
+import 'package:source_reader/features/sources/application/source_providers.dart';
 import 'package:source_reader/features/sources/data/source_repository.dart';
 import 'package:source_reader/features/sources/presentation/source_list.dart';
 
@@ -20,6 +21,11 @@ final class SourcePage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Source Workbench'),
         actions: [
+          IconButton(
+            tooltip: '导入书源',
+            onPressed: () => _importSource(context, ref),
+            icon: const Icon(Icons.file_upload_outlined),
+          ),
           IconButton(
             tooltip: '重新加载',
             onPressed: () {
@@ -41,6 +47,28 @@ final class SourcePage extends ConsumerWidget {
         data: (items) => _SourceLayout(sources: items),
       ),
     );
+  }
+
+  Future<void> _importSource(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final payload = await ref.read(sourceFilePickerProvider).pickSourceFile();
+    if (payload == null) {
+      return;
+    }
+
+    try {
+      final result =
+          await ref.read(sourceControllerProvider.notifier).importPayload(
+                payload,
+              );
+      messenger.showSnackBar(
+        SnackBar(content: Text('已导入 ${result.importedCount} 个书源')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('导入失败：$e')),
+      );
+    }
   }
 }
 

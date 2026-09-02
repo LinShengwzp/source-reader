@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:source_reader/features/sources/application/source_file_picker.dart';
+import 'package:source_reader/features/sources/application/source_import.dart';
 import 'package:source_reader/features/sources/application/source_providers.dart';
 import 'package:source_reader/features/sources/data/source_repository.dart';
 import 'package:source_reader/features/sources/domain/source_document.dart';
@@ -95,11 +99,93 @@ void main() {
     expect(find.text('加载书源失败'), findsOneWidget);
     expect(find.text('重试'), findsOneWidget);
   });
+
+  testWidgets('导入按钮成功导入并显示成功提示', (tester) async {
+    final repository = TestSourceRepository(
+      () async => <StoredSource>[],
+      onInsertSources: ({
+        required String platform,
+        required List<SourceDocument> documents,
+      }) async {
+        return List<int>.generate(documents.length, (index) => index + 1);
+      },
+    );
+    final picker = FakeSourceFilePicker(
+      payload: SourceImportPayload(
+        name: 'new.json',
+        bytes: Uint8List.fromList(utf8.encode('{"sourceName":"导入书源"}')),
+      ),
+    );
+
+    await _pumpPage(
+      tester,
+      repository,
+      picker: picker,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('导入书源'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('已导入 1 个书源'), findsOneWidget);
+    expect(picker.pickCalls, 1);
+  });
+
+  testWidgets('用户取消文件选择时不显示错误也不刷新', (tester) async {
+    final repository = TestSourceRepository(
+      () async => <StoredSource>[],
+    );
+    final picker = FakeSourceFilePicker(payload: null);
+
+    await _pumpPage(
+      tester,
+      repository,
+      picker: picker,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('导入书源'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SnackBar), findsNothing);
+    expect(picker.pickCalls, 1);
+  });
+
+  testWidgets('导入失败显示错误提示', (tester) async {
+    final repository = TestSourceRepository(
+      () async => <StoredSource>[],
+      onInsertSources: ({
+        required String platform,
+        required List<SourceDocument> documents,
+      }) async {
+        throw FormatException('解析失败');
+      },
+    );
+    final picker = FakeSourceFilePicker(
+      payload: SourceImportPayload(
+        name: 'bad.json',
+        bytes: Uint8List.fromList(utf8.encode('invalid json')),
+      ),
+    );
+
+    await _pumpPage(
+      tester,
+      repository,
+      picker: picker,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('导入书源'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('导入失败'), findsOneWidget);
+  });
 }
 
 Future<void> _pumpPage(
   WidgetTester tester,
   SourceRepository repository, {
+  SourceFilePicker? picker,
   Size size = const Size(800, 800),
 }) async {
   tester.view.devicePixelRatio = 1;
@@ -112,16 +198,39 @@ Future<void> _pumpPage(
       retry: (retryCount, error) => null,
       overrides: [
         sourceRepositoryProvider.overrideWithValue(repository),
+        sourceFilePickerProvider.overrideWithValue(
+          picker ?? FakeSourceFilePicker(payload: null),
+        ),
       ],
       child: const MaterialApp(home: SourcePage()),
     ),
   );
 }
 
+final class FakeSourceFilePicker implements SourceFilePicker {
+  FakeSourceFilePicker({required this.payload});
+
+  final SourceImportPayload? payload;
+  int pickCalls = 0;
+
+  @override
+  Future<SourceImportPayload?> pickSourceFile() async {
+    pickCalls += 1;
+    return payload;
+  }
+}
+
 final class TestSourceRepository implements SourceRepository {
-  TestSourceRepository(this.onList);
+  TestSourceRepository(
+    this.onList, {
+    this.onInsertSources,
+  });
 
   final Future<List<StoredSource>> Function() onList;
+  final Future<List<int>> Function({
+    required String platform,
+    required List<SourceDocument> documents,
+  })? onInsertSources;
 
   @override
   Future<List<StoredSource>> listSources() => onList();
@@ -139,7 +248,13 @@ final class TestSourceRepository implements SourceRepository {
   Future<List<int>> insertSources({
     required String platform,
     required List<SourceDocument> documents,
-  }) => throw UnimplementedError();
+  }) {
+    final handler = onInsertSources;
+    if (handler != null) {
+      return handler(platform: platform, documents: documents);
+    }
+    return Future<List<int>>.error(UnimplementedError());
+  }
 
   @override
   Future<void> updateSource(int id, SourceDocument document) =>
