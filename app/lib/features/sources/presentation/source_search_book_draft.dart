@@ -9,8 +9,8 @@ import 'package:source_reader/features/sources/domain/source_search_book_documen
 /// 只有 [applyTo] 时才生成新的 [SourceDocument]，编辑过程不会修改 raw JSON。
 final class SourceSearchBookDraft {
   SourceSearchBookDraft._({
-    required SourceSearchBookDocument? original,
-    required String originalMoreKeysText,
+    required this._original,
+    required this._originalMoreKeysText,
     required this.requestInfo,
     required this.list,
     required this.bookName,
@@ -28,8 +28,7 @@ final class SourceSearchBookDraft {
     required this.success,
     required this.jsParser,
     required this.moreKeysText,
-  })  : _original = original,
-        _originalMoreKeysText = originalMoreKeysText;
+  });
 
   factory SourceSearchBookDraft.fromDocument(
     SourceSearchBookDocument? document,
@@ -38,8 +37,8 @@ final class SourceSearchBookDraft {
     final moreKeysText = _projectMoreKeys(action?.moreKeysRaw);
 
     return SourceSearchBookDraft._(
-      original: document,
-      originalMoreKeysText: moreKeysText,
+      _original: document,
+      _originalMoreKeysText: moreKeysText,
       requestInfo: action?.requestInfo ?? '',
       list: document?.list ?? '',
       bookName: document?.bookName ?? '',
@@ -101,8 +100,8 @@ final class SourceSearchBookDraft {
     String? moreKeysText,
   }) {
     return SourceSearchBookDraft._(
-      original: _original,
-      originalMoreKeysText: _originalMoreKeysText,
+      _original: _original,
+      _originalMoreKeysText: _originalMoreKeysText,
       requestInfo: requestInfo ?? this.requestInfo,
       list: list ?? this.list,
       bookName: bookName ?? this.bookName,
