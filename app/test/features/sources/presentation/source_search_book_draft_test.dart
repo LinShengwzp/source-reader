@@ -174,7 +174,10 @@ void main() {
     final unchanged = draft.applyTo(source);
 
     expect(unchanged.searchBook!.action.moreKeysRaw, rawMoreKeys);
-    expect(unchanged.searchBook!.action.moreKeysRaw, isA<Map>());
+    expect(
+      unchanged.searchBook!.action.moreKeysRaw,
+      isA<Map<String, Object?>>(),
+    );
   });
 
   test('结构化 moreKeys 修改后解析回结构值，非法 JSON 拒绝 apply', () {
