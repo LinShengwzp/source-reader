@@ -47,6 +47,33 @@ void main() {
     }
   });
 
+  group('XBS round-trip regression', () {
+    test('不同 4 字节边界长度都能保持原始 payload', () {
+      for (final length in <int>[1, 2, 3, 4, 5, 8, 31, 42]) {
+        final source = Uint8List.fromList(
+          List<int>.generate(length, (index) => (index * 37 + 11) & 0xff),
+        );
+
+        final decoded = decodeXbs(encodeXbs(source));
+
+        expect(decoded, orderedEquals(source), reason: 'payload length=$length');
+      }
+    });
+
+    test('篡改密文不能静默还原成原始明文', () {
+      final expected = Uint8List.fromList(utf8.encode('{}'));
+      final corrupted = _hexToBytes('8d10136095c1c5ab');
+      corrupted[0] ^= 0x01;
+
+      try {
+        final decoded = decodeXbs(corrupted);
+        expect(decoded, isNot(orderedEquals(expected)));
+      } on FormatException {
+        // 旧 XBS 没有认证标签，损坏可能表现为长度标记无效或错误明文，两者都可接受。
+      }
+    });
+  });
+
   group('XBS invalid input', () {
     test('拒绝空明文', () {
       expect(() => encodeXbs(Uint8List(0)), throwsArgumentError);
