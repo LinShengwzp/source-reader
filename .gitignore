@@ -40,3 +40,6 @@ app/.metadata
 app/android/.gradle/
 app/ios/Pods/
 app/macos/Pods/
+
+# Drift generated code
+app/lib/core/database/app_database.g.dart
