@@ -37,8 +37,8 @@ final class SourceSearchBookDraft {
     final moreKeysText = _projectMoreKeys(action?.moreKeysRaw);
 
     return SourceSearchBookDraft._(
-      _original: document,
-      _originalMoreKeysText: moreKeysText,
+      original: document,
+      originalMoreKeysText: moreKeysText,
       requestInfo: action?.requestInfo ?? '',
       list: document?.list ?? '',
       bookName: document?.bookName ?? '',
@@ -100,8 +100,8 @@ final class SourceSearchBookDraft {
     String? moreKeysText,
   }) {
     return SourceSearchBookDraft._(
-      _original: _original,
-      _originalMoreKeysText: _originalMoreKeysText,
+      original: _original,
+      originalMoreKeysText: _originalMoreKeysText,
       requestInfo: requestInfo ?? this.requestInfo,
       list: list ?? this.list,
       bookName: bookName ?? this.bookName,
