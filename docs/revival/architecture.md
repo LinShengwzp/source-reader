@@ -75,20 +75,43 @@ updated_at
 
 唯一约束为 `(platform, source_name)`。
 
-其中 `raw_json` 是持久化事实来源，其余列只承担列表、过滤、排序与索引职责。
+其中 `raw_json` 是持久化事实来源，其余列只承担列表、过滤、排序与索引职责。`platform` 是本地持久化元数据，不属于书源 raw JSON。
 
 禁止提前创建 `books`、`chapters`、`book_groups` 等 Reader 阶段表。
 
 ### 4.4 Repository 必须显式且窄
 
-不重建旧版通用 SQL Builder。第一阶段只允许出现语义明确的方法：
+不重建旧版通用 SQL Builder。数据库记录通过 `StoredSource` 暴露稳定 id、platform、时间戳和 `SourceDocument`：
+
+```dart
+final class StoredSource {
+  const StoredSource({
+    required this.id,
+    required this.platform,
+    required this.document,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final int id;
+  final String platform;
+  final SourceDocument document;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+}
+```
+
+第一阶段 Repository 只允许出现语义明确的方法：
 
 ```dart
 abstract interface class SourceRepository {
-  Future<List<SourceDocument>> listSources();
-  Future<SourceDocument?> getSource(int id);
-  Future<int> insertSource(SourceDocument source);
-  Future<void> updateSource(int id, SourceDocument source);
+  Future<List<StoredSource>> listSources();
+  Future<StoredSource?> getSource(int id);
+  Future<int> insertSource({
+    required String platform,
+    required SourceDocument document,
+  });
+  Future<void> updateSource(int id, SourceDocument document);
   Future<void> deleteSource(int id);
 }
 ```
