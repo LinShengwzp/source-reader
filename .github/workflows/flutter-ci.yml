@@ -38,15 +38,21 @@ jobs:
       - name: Test
         shell: bash
         run: |
-          for attempt in 1 2 3; do
-            if flutter test; then
-              exit 0
-            fi
+          set +e
+          flutter test 2>&1 | tee "$RUNNER_TEMP/flutter-test.log"
+          test_status=${PIPESTATUS[0]}
+          set -e
 
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
+          if [ "$test_status" -eq 0 ]; then
+            exit 0
+          fi
 
-            echo "flutter test failed on attempt $attempt; retrying after transient native-asset failure"
+          if grep -q "Building native assets failed" "$RUNNER_TEMP/flutter-test.log" \
+            && grep -Eq "SocketException|Connection reset|Failed host lookup|download" "$RUNNER_TEMP/flutter-test.log"; then
+            echo "Transient SQLite native-asset download failure detected; retrying flutter test once"
             sleep 5
-          done
+            flutter test
+            exit $?
+          fi
+
+          exit "$test_status"
