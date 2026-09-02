@@ -37,6 +37,7 @@ dist-ssr
 .pub/
 build/
 app/.metadata
+app/coverage/
 app/android/.gradle/
 app/ios/Pods/
 app/macos/Pods/
