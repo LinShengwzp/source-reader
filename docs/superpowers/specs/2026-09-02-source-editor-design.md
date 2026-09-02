@@ -64,10 +64,22 @@ SourceController.reload
 
 ### 3. 显式选择，不从 UI 文本反推身份
 
-列表选择使用数据库 id。当前选中状态由独立 provider 表达：
+列表选择使用数据库 id。当前选中状态由独立的 Riverpod `Notifier` 表达，不使用 Riverpod 3 已归入 legacy library 的 `StateProvider`：
 
 ```dart
-final selectedSourceIdProvider = StateProvider<int?>((ref) => null);
+final sourceSelectionProvider =
+    NotifierProvider<SourceSelectionController, int?>(
+  SourceSelectionController.new,
+);
+
+final class SourceSelectionController extends Notifier<int?> {
+  @override
+  int? build() => null;
+
+  void select(int id) => state = id;
+
+  void clear() => state = null;
+}
 ```
 
 选择状态不塞进 `SourceList` 内部，也不依赖列表 index。这样 reload、排序变化和未来过滤都不会改变书源身份。
@@ -100,12 +112,13 @@ final class SourceEditorDraft {
 
 ## 组件职责
 
-### selectedSourceIdProvider
+### sourceSelectionProvider
 
 职责：
 
 - 保存当前选中的数据库 id。
 - `null` 表示未选择。
+- 通过 `select(id)` 与 `clear()` 修改。
 - 不读取 Repository。
 - 不保存 SourceDocument 副本。
 
@@ -243,10 +256,10 @@ SourceEditor(
 行为：
 
 - 未选择时右侧显示现有“选择一个书源开始编辑”。
-- 点击列表项后更新 `selectedSourceIdProvider`。
+- 点击列表项后调用 `sourceSelectionProvider.notifier.select(id)`。
 - 右侧根据 id 从当前 `List<StoredSource>` 中找到对应记录并显示 SourceEditor。
 - reload 后若选中 id 仍存在，继续保持选中。
-- reload 后若选中 id 不存在，则清空 selection。
+- reload 后若选中 id 不存在，则调用 `clear()` 清空 selection。
 
 ## 窄屏交互
 
@@ -255,11 +268,11 @@ SourceEditor(
 窄屏页面有两个状态：
 
 ```text
-selectedSourceId == null  → SourceList
-selectedSourceId != null  → SourceEditor
+selectedId == null  → SourceList
+selectedId != null  → SourceEditor
 ```
 
-Editor 顶部提供返回操作，返回时仅把 `selectedSourceIdProvider` 设为 null。
+Editor 顶部提供返回操作，返回时仅调用 `sourceSelectionProvider.notifier.clear()`。
 
 不使用 Navigator push/pop，避免现在为单一 Workbench 页面提前绑定未来应用级导航方案。
 
@@ -315,6 +328,14 @@ Editor 顶部提供返回操作，返回时仅把 `selectedSourceIdProvider` 设
 4. 失败异常原样向上传播。
 5. 当前已加载列表在失败时保持不变。
 
+### Selection 单元测试
+
+验证：
+
+1. 初始为 null。
+2. `select(id)` 保存 id。
+3. `clear()` 恢复 null。
+
 ### SourceList widget test
 
 验证：
@@ -343,12 +364,13 @@ Editor 顶部提供返回操作，返回时仅把 `selectedSourceIdProvider` 设
 4. 窄屏返回恢复列表。
 5. 保存成功 Snackbar。
 6. 保存失败 Snackbar 且 Editor 草稿不丢。
+7. reload 后选中 id 不再存在时自动清空 selection。
 
 ## 实施边界
 
 ### 强模型负责
 
-- `selectedSourceIdProvider` 的状态边界。
+- `sourceSelectionProvider` / `SourceSelectionController` 状态边界。
 - `SourceController.updateSource`。
 - `SourceEditorDraft` 及 raw JSON 保留测试。
 - SourcePage 宽窄屏状态组合。
