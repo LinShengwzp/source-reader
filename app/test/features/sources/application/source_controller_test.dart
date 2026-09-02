@@ -11,7 +11,7 @@ void main() {
       _storedSource(id: 1, name: '书源 A'),
     ]);
     final container = ProviderContainer(
-      overrides: <Override>[
+      overrides: [
         sourceRepositoryProvider.overrideWithValue(fake),
       ],
     );
@@ -30,7 +30,7 @@ void main() {
       _storedSource(id: 1, name: '旧书源'),
     ]);
     final container = ProviderContainer(
-      overrides: <Override>[
+      overrides: [
         sourceRepositoryProvider.overrideWithValue(fake),
       ],
     );
