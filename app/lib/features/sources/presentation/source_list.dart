@@ -6,9 +6,13 @@ final class SourceList extends StatelessWidget {
   const SourceList({
     super.key,
     required this.sources,
+    required this.selectedId,
+    required this.onSelected,
   });
 
   final List<StoredSource> sources;
+  final int? selectedId;
+  final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +30,9 @@ final class SourceList extends StatelessWidget {
         final name = source.document.sourceName;
 
         return ListTile(
+          key: Key('source-list-tile-${source.id}'),
+          selected: source.id == selectedId,
+          onTap: () => onSelected(source.id),
           title: Text(
             name == null || name.trim().isEmpty ? '未命名书源' : name,
           ),
