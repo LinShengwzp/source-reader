@@ -55,6 +55,38 @@ void main() {
     expect(find.text('停用'), findsOneWidget);
   });
 
+  testWidgets('宽屏点击书源后按数据库 id 显示选中态', (tester) async {
+    final repository = TestSourceRepository(
+      () async => <StoredSource>[
+        _storedSource(id: 1, name: '书源 A'),
+        _storedSource(id: 2, name: '书源 B'),
+      ],
+    );
+
+    await _pumpPage(
+      tester,
+      repository,
+      size: const Size(1200, 800),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('source-list-tile-2')));
+    await tester.pump();
+
+    expect(
+      tester.widget<ListTile>(
+        find.byKey(const Key('source-list-tile-1')),
+      ).selected,
+      isFalse,
+    );
+    expect(
+      tester.widget<ListTile>(
+        find.byKey(const Key('source-list-tile-2')),
+      ).selected,
+      isTrue,
+    );
+  });
+
   testWidgets('宽屏显示 master-detail 双栏', (tester) async {
     final repository = TestSourceRepository(
       () async => <StoredSource>[_storedSource(id: 1, name: '书源 A')],
