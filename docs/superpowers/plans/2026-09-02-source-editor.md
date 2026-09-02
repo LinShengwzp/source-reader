@@ -20,18 +20,20 @@
 - Riverpod 3 新代码不得使用 legacy `StateProvider`；选择状态使用 `NotifierProvider`。
 - Presentation 不得直接依赖 Drift、SQLite 或 `SqliteSourceRepository`。
 - 代码注释继续使用中文。
-- 每个任务严格 RED → GREEN；每个任务独立 commit。
-- OmniRoute 工单必须限定允许修改文件，运行 `flutter analyze`、相关 `flutter test`、全量 `flutter test`、`git diff --check`，并自行 commit 后返回 SHA。
+- 每个实现任务严格 RED → GREEN，并拥有独立代码 commit。
+- OmniRoute 工单由强模型先写入 `docs/omniroute/` 并单独 docs commit；OmniRoute 自身代码 commit 不得改工单文档。
+- OmniRoute 必须运行指定 focused test、`flutter analyze`、全量 `flutter test`、`git diff --check`，自行 commit 后返回 SHA。
 
 ## File Structure
 
-- Create `app/lib/features/sources/application/source_selection.dart`：仅负责当前数据库 id 的选择状态。
-- Create `app/lib/features/sources/presentation/source_editor_draft.dart`：纯 Dart 草稿模型与 `SourceDocument` 转换，不依赖 Flutter/Riverpod/Repository。
+- Create `app/lib/features/sources/application/source_selection.dart`：当前数据库 id 的选择状态。
+- Create `app/lib/features/sources/presentation/source_editor_draft.dart`：纯 Dart 草稿模型与 `SourceDocument` 转换。
 - Create `app/lib/features/sources/presentation/source_editor.dart`：四字段表单 widget，只通过回调提交 `SourceDocument`。
 - Modify `app/lib/features/sources/application/source_controller.dart`：增加保存协调方法。
-- Modify `app/lib/features/sources/presentation/source_list.dart`：增加 selectedId/onSelected，仍保持纯输入组件。
+- Modify `app/lib/features/sources/presentation/source_list.dart`：增加 `selectedId/onSelected`，仍保持纯输入组件。
 - Modify `app/lib/features/sources/presentation/source_page.dart`：组合 selection、宽窄屏 Editor、保存反馈与 selection reconciliation。
-- Add/modify对应测试文件，按任务边界验证。
+- Create `docs/omniroute/OR-003-selectable-source-list.md`：SourceList 受控机械工单。
+- Create `docs/omniroute/OR-004-source-editor-widget.md`：SourceEditor 受控机械工单。
 
 ---
 
@@ -56,14 +58,13 @@ final class SourceSelectionController extends Notifier<int?> {
   int? build();
 
   void select(int id);
-
   void clear();
 }
 ```
 
-- [ ] **Step 1: Write the failing selection tests**
+- [ ] **Step 1: Write the failing selection test**
 
-Create `app/test/features/sources/application/source_selection_test.dart`：
+Create `app/test/features/sources/application/source_selection_test.dart`:
 
 ```dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,9 +87,9 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [ ] **Step 2: Run focused test and verify RED**
 
-Run from `app/`:
+From `app/`:
 
 ```bash
 flutter test test/features/sources/application/source_selection_test.dart
@@ -96,9 +97,9 @@ flutter test test/features/sources/application/source_selection_test.dart
 
 Expected: FAIL because `source_selection.dart` / `sourceSelectionProvider` does not exist.
 
-- [ ] **Step 3: Implement the minimal modern Riverpod selection state**
+- [ ] **Step 3: Implement minimal selection state**
 
-Create `app/lib/features/sources/application/source_selection.dart`：
+Create `app/lib/features/sources/application/source_selection.dart`:
 
 ```dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -123,7 +124,7 @@ final class SourceSelectionController extends Notifier<int?> {
 }
 ```
 
-- [ ] **Step 4: Verify GREEN and static analysis**
+- [ ] **Step 4: Verify GREEN**
 
 ```bash
 flutter test test/features/sources/application/source_selection_test.dart
@@ -158,9 +159,9 @@ Future<void> updateSource({
 })
 ```
 
-- [ ] **Step 1: Extend the fake repository for observable updates**
+- [ ] **Step 1: Extend FakeSourceRepository with observable update behavior**
 
-In `source_controller_test.dart`, add fields to `FakeSourceRepository`:
+Add fields:
 
 ```dart
 Object? updateError;
@@ -169,11 +170,39 @@ int? updatedId;
 SourceDocument? updatedDocument;
 ```
 
-Replace its `updateSource` with behavior that records `id/document`, throws `updateError` when configured, and on success replaces the matching `StoredSource` while preserving `id/platform/createdAt` and changing `updatedAt`.
+Replace the current `updateSource` fake with:
 
-- [ ] **Step 2: Write RED tests for success and failure**
+```dart
+@override
+Future<void> updateSource(int id, SourceDocument document) async {
+  updateCalls += 1;
+  updatedId = id;
+  updatedDocument = document;
 
-Add tests that prove:
+  final error = updateError;
+  if (error != null) {
+    throw error;
+  }
+
+  final index = items.indexWhere((item) => item.id == id);
+  if (index < 0) {
+    throw StateError('source not found: $id');
+  }
+
+  final current = items[index];
+  items[index] = StoredSource(
+    id: current.id,
+    platform: current.platform,
+    document: document,
+    createdAt: current.createdAt,
+    updatedAt: DateTime.utc(2026, 9, 2, 9),
+  );
+}
+```
+
+- [ ] **Step 2: Write RED success/failure tests**
+
+Success:
 
 ```dart
 test('updateSource 成功后调用 Repository 并 reload 当前列表', () async {
@@ -208,7 +237,7 @@ test('updateSource 成功后调用 Repository 并 reload 当前列表', () async
 });
 ```
 
-And failure:
+Failure:
 
 ```dart
 test('updateSource 失败时不 reload、不污染当前列表并继续抛原异常', () async {
@@ -242,13 +271,13 @@ test('updateSource 失败时不 reload、不污染当前列表并继续抛原异
 });
 ```
 
-- [ ] **Step 3: Run focused tests and verify RED**
+- [ ] **Step 3: Verify RED**
 
 ```bash
 flutter test test/features/sources/application/source_controller_test.dart
 ```
 
-Expected: FAIL because `SourceController.updateSource(...)` is undefined.
+Expected: FAIL only because `SourceController.updateSource(...)` is undefined.
 
 - [ ] **Step 4: Implement minimal controller coordination**
 
@@ -265,7 +294,7 @@ Future<void> updateSource({
 }
 ```
 
-Do not wrap repository errors in `AsyncValue.guard` before the repository update; a failed update must leave current controller state untouched.
+Do not set `state = AsyncLoading()` before the repository update. A failed update must leave the already-loaded list untouched.
 
 - [ ] **Step 5: Verify GREEN**
 
@@ -315,11 +344,11 @@ final class SourceEditorDraft {
 }
 ```
 
-`applyTo` assumes the UI has already validated sourceName and weight. It trims strings and parses weight with `int.parse`.
+`applyTo` assumes UI validation has already succeeded. It trims `sourceName/sourceUrl` and parses weight with `int.parse`.
 
-- [ ] **Step 1: Write RED tests for extraction and preservation**
+- [ ] **Step 1: Write RED extraction/preservation tests**
 
-Create tests covering a document like:
+Fixture:
 
 ```dart
 final original = SourceDocument.fromRaw(<String, Object?>{
@@ -333,7 +362,7 @@ final original = SourceDocument.fromRaw(<String, Object?>{
 });
 ```
 
-Assertions:
+Extraction assertions:
 
 ```dart
 final draft = SourceEditorDraft.fromDocument(original);
@@ -343,9 +372,16 @@ expect(draft.enabled, isTrue);
 expect(draft.weight, '7');
 ```
 
-Then create a changed draft and call `applyTo(original)`, asserting:
+Apply assertions:
 
 ```dart
+final updated = const SourceEditorDraft(
+  sourceName: '  新名称  ',
+  sourceUrl: ' https://new.example ',
+  enabled: false,
+  weight: ' 12 ',
+).applyTo(original);
+
 expect(updated.sourceName, '新名称');
 expect(updated.sourceUrl, 'https://new.example');
 expect(updated.enabled, isFalse);
@@ -355,9 +391,9 @@ expect(updated.toRaw()['weight'], '12');
 expect(updated.toRaw()['futureRule'], original.toRaw()['futureRule']);
 ```
 
-Also test missing `sourceName/sourceUrl` produce empty draft strings and numeric/bool historical representations remain compatible through `copyWithKnownFields`.
+Also add a second test proving null `sourceName/sourceUrl` become empty draft strings, and a document using boolean `enable` plus integer `weight` keeps those historical raw representation types after `applyTo`.
 
-- [ ] **Step 2: Run focused test and verify RED**
+- [ ] **Step 2: Verify RED**
 
 ```bash
 flutter test test/features/sources/presentation/source_editor_draft_test.dart
@@ -367,7 +403,41 @@ Expected: FAIL because `SourceEditorDraft` does not exist.
 
 - [ ] **Step 3: Implement the pure Dart draft**
 
-Create `source_editor_draft.dart` with exactly the interface above. `fromDocument` uses `?? ''` for nullable strings and `document.weight.toString()` for weight. `applyTo` must call `original.copyWithKnownFields(...)`; it must never rebuild a raw map from only the four known fields.
+```dart
+import 'package:source_reader/features/sources/domain/source_document.dart';
+
+final class SourceEditorDraft {
+  const SourceEditorDraft({
+    required this.sourceName,
+    required this.sourceUrl,
+    required this.enabled,
+    required this.weight,
+  });
+
+  factory SourceEditorDraft.fromDocument(SourceDocument document) {
+    return SourceEditorDraft(
+      sourceName: document.sourceName ?? '',
+      sourceUrl: document.sourceUrl ?? '',
+      enabled: document.enabled,
+      weight: document.weight.toString(),
+    );
+  }
+
+  final String sourceName;
+  final String sourceUrl;
+  final bool enabled;
+  final String weight;
+
+  SourceDocument applyTo(SourceDocument original) {
+    return original.copyWithKnownFields(
+      sourceName: sourceName.trim(),
+      sourceUrl: sourceUrl.trim(),
+      enabled: enabled,
+      weight: int.parse(weight.trim()),
+    );
+  }
+}
+```
 
 - [ ] **Step 4: Verify GREEN**
 
@@ -390,13 +460,15 @@ git commit -m "feat: add source editor draft"
 
 ### Task 4: OR-003 selectable SourceList（OmniRoute）
 
-**Files:**
+**Files implemented by OmniRoute:**
 - Modify: `app/lib/features/sources/presentation/source_list.dart`
 - Create: `app/test/features/sources/presentation/source_list_test.dart`
+
+**Work order created first by strong model:**
 - Create: `docs/omniroute/OR-003-selectable-source-list.md`
 
 **Interfaces:**
-- Consumes: `StoredSource.id` and existing list display fields.
+- Consumes: `StoredSource.id` and existing display fields.
 - Produces:
 
 ```dart
@@ -407,28 +479,57 @@ SourceList({
 })
 ```
 
-- [ ] **Step 1: Strong model writes the OR-003 work order before delegation**
+- [ ] **Step 1: Strong model creates and commits OR-003**
 
-The work order must allow only the three files listed above, forbid Domain/Application/Repository/Database/Codec changes, and require OmniRoute to self-commit and return SHA.
+The work order must allow only:
+
+```text
+app/lib/features/sources/presentation/source_list.dart
+app/test/features/sources/presentation/source_list_test.dart
+```
+
+It must forbid Domain/Application/Repository/Database/Codec changes and require OmniRoute to self-commit and return SHA.
+
+Docs-only commit:
+
+```bash
+git add docs/omniroute/OR-003-selectable-source-list.md
+git commit -m "docs: add selectable source list task"
+```
 
 - [ ] **Step 2: OmniRoute writes RED widget tests**
 
-Tests must prove:
+Click identity:
 
 ```dart
+final selectedIds = <int>[];
+await tester.pumpWidget(
+  MaterialApp(
+    home: SourceList(
+      sources: <StoredSource>[
+        _storedSource(id: 1, name: '书源 A'),
+        _storedSource(id: 2, name: '书源 B'),
+      ],
+      selectedId: null,
+      onSelected: selectedIds.add,
+    ),
+  ),
+);
+
 await tester.tap(find.text('书源 B'));
 expect(selectedIds, <int>[2]);
 ```
 
-and selected visual identity must be testable using a stable key:
+Stable key/selected state:
 
 ```dart
-Key('source-list-tile-2')
+final tile = tester.widget<ListTile>(
+  find.byKey(const Key('source-list-tile-2')),
+);
+expect(tile.selected, isTrue);
 ```
 
-with `ListTile.selected == true` when `selectedId == 2`.
-
-A reordered list with the same selected id must still select the record whose database id is 2.
+Also rebuild with order `[id:2, id:1]` while `selectedId == 2`; id 2 must remain selected.
 
 - [ ] **Step 3: Verify RED**
 
@@ -436,11 +537,11 @@ A reordered list with the same selected id must still select the record whose da
 flutter test test/features/sources/presentation/source_list_test.dart
 ```
 
-Expected: FAIL because current `SourceList` lacks selectedId/onSelected/keys.
+Expected: FAIL because current `SourceList` lacks `selectedId`, `onSelected`, and stable tile keys.
 
-- [ ] **Step 4: OmniRoute implements minimal selectable list**
+- [ ] **Step 4: Implement minimal selectable list**
 
-Each tile must use:
+Constructor gains the two fields. Each tile uses:
 
 ```dart
 key: Key('source-list-tile-${source.id}'),
@@ -448,7 +549,7 @@ selected: source.id == selectedId,
 onTap: () => onSelected(source.id),
 ```
 
-Do not add Riverpod reads or local selected state.
+No Riverpod reads and no local selected state.
 
 - [ ] **Step 5: Verify and self-commit**
 
@@ -460,22 +561,24 @@ git diff --check
 git status --short
 ```
 
-Commit:
+Code commit:
 
 ```bash
-git add docs/omniroute/OR-003-selectable-source-list.md app/lib/features/sources/presentation/source_list.dart app/test/features/sources/presentation/source_list_test.dart
+git add app/lib/features/sources/presentation/source_list.dart app/test/features/sources/presentation/source_list_test.dart
 git commit -m "feat: make source list selectable"
 ```
 
-Return commit SHA for review.
+Return SHA for strong-model review.
 
 ---
 
 ### Task 5: OR-004 four-field SourceEditor widget（OmniRoute）
 
-**Files:**
+**Files implemented by OmniRoute:**
 - Create: `app/lib/features/sources/presentation/source_editor.dart`
 - Create: `app/test/features/sources/presentation/source_editor_test.dart`
+
+**Work order created first by strong model:**
 - Create: `docs/omniroute/OR-004-source-editor-widget.md`
 
 **Interfaces:**
@@ -496,9 +599,7 @@ SourceEditor({
 
 The widget owns only transient form state. It does not read Riverpod or Repository.
 
-- [ ] **Step 1: Strong model writes OR-004 with exact allowed files and UI contract**
-
-Stable field keys:
+Stable keys:
 
 ```text
 source-editor-name
@@ -509,18 +610,28 @@ source-editor-save
 source-editor-back
 ```
 
-`source-editor-back` is rendered only when `onBack != null`.
+- [ ] **Step 1: Strong model creates and commits OR-004**
+
+The work order must allow only the two SourceEditor files above and explicitly forbid edits to `SourceEditorDraft`, SourceController, Repository, Database, Codec, SourcePage, and SourceList.
+
+Docs-only commit:
+
+```bash
+git add docs/omniroute/OR-004-source-editor-widget.md
+git commit -m "docs: add basic source editor task"
+```
 
 - [ ] **Step 2: OmniRoute writes RED tests**
 
-Tests must prove:
+Tests must prove all of the following:
 
 1. Four fields initialize from `StoredSource.document`.
-2. Editing name/url/enabled/weight and tapping save passes a `SourceDocument` with those four changed values while an unknown raw field remains present.
-3. `sourceName.trim().isEmpty` shows `书源名称不能为空` and does not call `onSave`.
-4. invalid `weight` shows `权重必须是整数` and does not call `onSave`.
-5. While returned save Future is unresolved, save button has `onPressed == null`; after completion it becomes enabled again.
-6. `onBack` callback is called only when the optional back button exists and is tapped.
+2. Editing name/url/enabled/weight and tapping save passes a `SourceDocument` with those four changes while an unknown nested raw field remains unchanged.
+3. `sourceName.trim().isEmpty` shows exactly `书源名称不能为空` and does not call `onSave`.
+4. Invalid weight shows exactly `权重必须是整数` and does not call `onSave`.
+5. While a `Completer<void>` returned by `onSave` is unresolved, the save `FilledButton` has `onPressed == null`; after completer completion it becomes enabled.
+6. `onBack == null` means no `source-editor-back`; when provided, tapping it invokes the callback once.
+7. Rebuilding the same mounted `SourceEditor` with a different `StoredSource.id` replaces all four displayed draft values with the new source values.
 
 - [ ] **Step 3: Verify RED**
 
@@ -532,15 +643,81 @@ Expected: FAIL because `SourceEditor` does not exist.
 
 - [ ] **Step 4: Implement minimal StatefulWidget**
 
-Requirements:
+Use `TextEditingController` for name/url/weight, a bool for enabled, and `_saving` for duplicate-submit protection.
 
-- Initialize controllers/switch state from `SourceEditorDraft.fromDocument(source.document)`.
-- Use `Form` validators with exact strings above.
-- On valid save, build a `SourceEditorDraft` from current field values and call `draft.applyTo(source.document)`.
-- Await `onSave(updatedDocument)`.
-- Use a local `_saving` boolean solely to prevent duplicate submits.
-- Do not catch/save-toast errors inside SourceEditor; errors must bubble to SourcePage.
-- Dispose TextEditingControllers.
+Initialization helper:
+
+```dart
+void _loadSource(StoredSource source) {
+  final draft = SourceEditorDraft.fromDocument(source.document);
+  _nameController.text = draft.sourceName;
+  _urlController.text = draft.sourceUrl;
+  _weightController.text = draft.weight;
+  _enabled = draft.enabled;
+}
+```
+
+Required lifecycle handling:
+
+```dart
+@override
+void didUpdateWidget(covariant SourceEditor oldWidget) {
+  super.didUpdateWidget(oldWidget);
+  if (oldWidget.source.id != widget.source.id) {
+    _loadSource(widget.source);
+  }
+}
+```
+
+This is mandatory so wide-screen selection A → B cannot reuse A's draft.
+
+Validation:
+
+```dart
+validator: (value) {
+  if (value == null || value.trim().isEmpty) {
+    return '书源名称不能为空';
+  }
+  return null;
+}
+```
+
+Weight:
+
+```dart
+validator: (value) {
+  if (value == null || int.tryParse(value.trim()) == null) {
+    return '权重必须是整数';
+  }
+  return null;
+}
+```
+
+Save handler must use `try/finally` so `_saving` always resets:
+
+```dart
+if (!_formKey.currentState!.validate() || _saving) {
+  return;
+}
+setState(() => _saving = true);
+try {
+  final draft = SourceEditorDraft(
+    sourceName: _nameController.text,
+    sourceUrl: _urlController.text,
+    enabled: _enabled,
+    weight: _weightController.text,
+  );
+  await widget.onSave(draft.applyTo(widget.source.document));
+} finally {
+  if (mounted) {
+    setState(() => _saving = false);
+  }
+}
+```
+
+Do not catch errors to show Snackbars inside `SourceEditor`; page-level callback owns user feedback.
+
+Dispose all TextEditingControllers.
 
 - [ ] **Step 5: Verify and self-commit**
 
@@ -552,14 +729,14 @@ git diff --check
 git status --short
 ```
 
-Commit:
+Code commit:
 
 ```bash
-git add docs/omniroute/OR-004-source-editor-widget.md app/lib/features/sources/presentation/source_editor.dart app/test/features/sources/presentation/source_editor_test.dart
+git add app/lib/features/sources/presentation/source_editor.dart app/test/features/sources/presentation/source_editor_test.dart
 git commit -m "feat: add basic source editor widget"
 ```
 
-Return commit SHA for review.
+Return SHA for strong-model review.
 
 ---
 
@@ -573,25 +750,53 @@ Return commit SHA for review.
 - Consumes: `sourceSelectionProvider`, `SourceList(selectedId:onSelected:)`, `SourceEditor`, `SourceController.updateSource(...)`.
 - Produces: complete wide/narrow selection-edit-save behavior.
 
-- [ ] **Step 1: Update existing page test helper to include selection state without mocking it**
+- [ ] **Step 1: Extend TestSourceRepository with real fake updates**
 
-Continue overriding Repository and SourceFilePicker only. Let `sourceSelectionProvider` use its real implementation so widget tests exercise actual selection semantics.
+Add `updateError`, `updateCalls`, and implement the same replace-by-id behavior used in Task 2 so SourcePage tests observe the refreshed data rather than mocking Controller internals.
 
-- [ ] **Step 2: Write RED tests for wide and narrow selection**
+- [ ] **Step 2: Write RED wide/narrow selection tests**
 
-Wide (`Size(1200, 800)`): tap `Key('source-list-tile-1')`, then expect `Key('source-editor-name')` and existing master pane simultaneously.
+Wide (`Size(1200, 800)`):
 
-Narrow (`Size(600, 800)`): tap the tile, expect list pane hidden and editor visible; tap `source-editor-back`, expect list visible and editor absent.
+```dart
+await tester.tap(find.byKey(const Key('source-list-tile-1')));
+await tester.pumpAndSettle();
+expect(find.byKey(const Key('source-master-pane')), findsOneWidget);
+expect(find.byKey(const Key('source-editor-name')), findsOneWidget);
+```
 
-- [ ] **Step 3: Write RED tests for save success and failure**
+Narrow (`Size(600, 800)`): tap tile, expect master list absent and editor present; tap `source-editor-back`, expect list present and editor absent.
 
-Extend `TestSourceRepository` with observable `updateSource`. Success test edits name to `已保存名称`, taps save, then expects Snackbar `已保存` and the refreshed list/editor to contain the saved name.
+- [ ] **Step 3: Write RED save success/failure tests**
 
-Failure test configures a stable `StateError('save failed')`, edits a field, taps save, expects Snackbar containing `保存失败：Bad state: save failed`, and expects the edited field text still present because the editor was not replaced by a reload.
+Success: edit name to `已保存名称`, tap save, settle, then expect:
 
-- [ ] **Step 4: Write RED test for selection reconciliation**
+```dart
+expect(find.text('已保存'), findsOneWidget);
+expect(repository.updateCalls, 1);
+expect(find.text('已保存名称'), findsWidgets);
+```
 
-Start with selected id 1. Cause repository reload to return only id 2, call controller reload, then verify the page returns to unselected state: wide shows `选择一个书源开始编辑`; narrow shows list rather than a stale editor.
+Failure: configure `updateError = StateError('save failed')`, type `草稿仍在`, tap save, then expect:
+
+```dart
+expect(find.textContaining('保存失败：Bad state: save failed'), findsOneWidget);
+expect(
+  tester.widget<TextFormField>(
+    find.byKey(const Key('source-editor-name')),
+  ).controller?.text,
+  '草稿仍在',
+);
+```
+
+The failure path must not reload the source list.
+
+- [ ] **Step 4: Write RED selection reconciliation test**
+
+Start with records id 1 and id 2. Select id 1. Change repository list to only id 2 and invoke Controller reload. After settle, selection must be cleared:
+
+- wide: placeholder `选择一个书源开始编辑` is visible;
+- narrow: SourceList is visible, stale SourceEditor is absent.
 
 - [ ] **Step 5: Verify RED**
 
@@ -601,51 +806,86 @@ flutter test test/features/sources/presentation/source_page_test.dart
 
 Expected: FAIL because current page does not consume selection or SourceEditor.
 
-- [ ] **Step 6: Implement adaptive composition**
+- [ ] **Step 6: Implement selection composition and reconciliation**
 
-In `SourcePage.build`:
+At build start:
 
 ```dart
+final sources = ref.watch(sourceControllerProvider);
 final selectedId = ref.watch(sourceSelectionProvider);
 ```
 
-Pass `selectedId` and `onSelected` into SourceList. Resolve the selected source by id from the current `items`; never by index.
+Install a provider listener:
 
-Use `ref.listen(sourceControllerProvider, ...)` to observe successful list changes. If current selected id is non-null and no returned record has that id, call `sourceSelectionProvider.notifier.clear()` after the provider change callback, not by mutating provider synchronously during widget layout.
+```dart
+ref.listen(sourceControllerProvider, (previous, next) {
+  next.whenData((items) {
+    final currentId = ref.read(sourceSelectionProvider);
+    if (currentId == null) {
+      return;
+    }
+    final stillExists = items.any((item) => item.id == currentId);
+    if (!stillExists) {
+      ref.read(sourceSelectionProvider.notifier).clear();
+    }
+  });
+});
+```
 
-Wide behavior:
+Resolve selected source strictly by id:
+
+```dart
+StoredSource? selectedSource;
+for (final item in items) {
+  if (item.id == selectedId) {
+    selectedSource = item;
+    break;
+  }
+}
+```
+
+Do not use list index or sourceName.
+
+Wide:
 
 ```text
 left  = SourceList
-right = selected source ? SourceEditor : placeholder
+right = selectedSource != null ? SourceEditor : placeholder
 ```
 
-Narrow behavior:
+Narrow:
 
 ```text
-selected == null ? SourceList : SourceEditor(onBack: clear)
+selectedSource == null ? SourceList : SourceEditor(onBack: clear)
 ```
 
 - [ ] **Step 7: Implement save callback at page boundary**
 
-The callback passed to SourceEditor must:
+The page callback catches update errors and converts them into user feedback. It must **not rethrow** after showing the failure Snackbar, because the button event must not emit an unhandled asynchronous Flutter error.
 
 ```dart
-try {
-  await ref.read(sourceControllerProvider.notifier).updateSource(
-        id: source.id,
-        document: document,
-      );
-  messenger.showSnackBar(const SnackBar(content: Text('已保存')));
-} catch (error) {
-  messenger.showSnackBar(
-    SnackBar(content: Text('保存失败：$error')),
-  );
-  rethrow;
+Future<void> saveSource(
+  StoredSource source,
+  SourceDocument document,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await ref.read(sourceControllerProvider.notifier).updateSource(
+          id: source.id,
+          document: document,
+        );
+    messenger.showSnackBar(
+      const SnackBar(content: Text('已保存')),
+    );
+  } catch (error) {
+    messenger.showSnackBar(
+      SnackBar(content: Text('保存失败：$error')),
+    );
+  }
 }
 ```
 
-Because SourceEditor awaits `onSave`, rethrowing keeps the failure observable to it only for `_saving` cleanup; the editor must not replace its draft on failure.
+`SourceEditor` still exits `_saving` through its own `finally`. Since Controller does not reload on repository update failure, the mounted Editor and its controllers retain the user's draft.
 
 - [ ] **Step 8: Verify focused and full GREEN**
 
@@ -684,9 +924,9 @@ git diff --check
 
 Expected:
 
-- analyzer: `No issues found!`
-- all tests pass
-- `git diff --check` has no output
+- analyzer prints `No issues found!`;
+- all tests pass;
+- `git diff --check` prints nothing.
 
 Manual smoke test on one available native platform:
 
@@ -695,7 +935,7 @@ Manual smoke test on one available native platform:
 3. Select the imported source.
 4. Change name, URL, enabled flag, and weight.
 5. Save.
-6. Confirm success feedback and refreshed list value.
+6. Confirm `已保存` feedback and refreshed list value.
 7. Restart app and confirm saved values persist from SQLite.
 
 The stage is complete only when automated tests additionally prove an unknown nested raw JSON field survives the edit-save path unchanged.
