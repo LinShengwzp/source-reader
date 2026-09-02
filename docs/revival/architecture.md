@@ -14,10 +14,12 @@
 
 ## 2. 分支与旧项目策略
 
-- `main` 保留 2023 年的 Vue + Tauri 1 历史状态。
+- `main` 保留 2023 年完整的 Vue + Tauri 1 历史状态。
 - 新开发只在 `revival/flutter-workbench` 进行。
-- 新 Flutter 应用放在仓库根目录的 `app/`。
-- 在 Flutter 完成 XBS/JSON 导入、编辑、保存、导出闭环之前，不删除 `src/` 与 `src-tauri/`。
+- `revival/flutter-workbench` 是 Flutter-only 运行分支，唯一可运行客户端位于仓库根目录的 `app/`。
+- 旧 Vue/Vite/Tauri 运行时、Rust 宿主、旧 Release workflow 和根 Node 工程配置已从 revival 分支移除。
+- 仍有迁移价值的历史源码归档在 `docs/legacy/source-reference/`，仅作为领域资料、XBS 行为基准、帮助文档和交互参考，不参与构建。
+- 需要追溯完整旧应用、旧 SQLite/Pinia/Tauri 实现时查看 `main` 或 Git 历史，不把这些运行时重新带回 revival 分支。
 - 不进行 Tauri 1 -> Tauri 2 迁移。Flutter 已经是重生版本的宿主框架，升级 Tauri 只会形成无收益的中间迁移。
 
 ## 3. 技术栈
@@ -164,27 +166,35 @@ app/lib/
 
 ## 6. 旧项目复用策略
 
+历史参考源码统一位于 `docs/legacy/source-reference/`。
+
 ### 直接迁移/重写核心逻辑
 
-- `src/utils/xbsTool/xbsTools.ts`：作为 XBS codec 行为基准，重写为 Dart，并用 round-trip fixture 锁定行为。
-- `src/utils/xbsTool/xbsFileTools.ts`：仅保留“支持 XBS/JSON 导入”的产品需求，不迁 FileReader 实现。
-- `src/utils/Models.ts`：提取书源平台、类型、编码等领域知识，不照搬旧 DTO。
-- `src/views/nodes/ModifyFormModel.ts`：作为表单字段和帮助文档的领域资料，逐批迁移。
+- `docs/legacy/source-reference/xbsTool/xbsTools.ts`：作为 XBS codec 行为基准，重写为 Dart，并用 round-trip fixture 锁定行为。
+- `docs/legacy/source-reference/xbsTool/xbsFileTools.ts`：仅保留“支持 XBS/JSON 导入”的产品需求，不迁 FileReader 实现。
+- `docs/legacy/source-reference/Models.ts`：提取书源平台、类型、编码等领域知识，不照搬旧 DTO。
+- `docs/legacy/source-reference/Strutil.ts`：仅在需要核对历史 JSON/stringify 行为时参考，不直接迁移工具集合。
+- `docs/legacy/source-reference/nodes/ModifyFormModel.ts`：作为表单字段和帮助文档的领域资料，逐批迁移。
 
 ### 只保留交互思想
 
-- `NodeList.vue`
-- `NodeDetail.vue`
-- `NodeModify.vue`
-- 节点导入页面
+- `docs/legacy/source-reference/nodes/NodeList.vue`
+- `docs/legacy/source-reference/nodes/NodeDetail.vue`
+- `docs/legacy/source-reference/nodes/NodeDocs.vue`
+- `docs/legacy/source-reference/nodes/NodeModify.vue`
+
+这些文件是静态历史参考，不要求 import 可解析，也不参与 Flutter 构建。
 
 ### 明确不迁移
 
-- `src/utils/storage/Sqlite.ts`
-- `src/utils/storage/Table.ts`
-- 旧 Pinia 状态流
-- 未落地的 Rust `service/model/storage`
-- 旧 Tauri SQL 集成
+- 旧 `src/utils/storage/Sqlite.ts`。
+- 旧 `src/utils/storage/Table.ts`。
+- 旧 Pinia 状态流。
+- 未落地的 Rust `service/model/storage`。
+- 旧 Tauri SQL 集成。
+- Vite/Vue/Tauri 的工程构建配置。
+
+需要追溯上述内容时查看 `main`，不要重新复制进 revival 运行树。
 
 ## 7. OmniRoute 使用边界
 
