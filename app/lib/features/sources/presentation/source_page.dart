@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:source_reader/features/sources/application/source_controller.dart';
 import 'package:source_reader/features/sources/application/source_providers.dart';
+import 'package:source_reader/features/sources/application/source_selection.dart';
 import 'package:source_reader/features/sources/data/source_repository.dart';
 import 'package:source_reader/features/sources/presentation/source_list.dart';
 
@@ -16,6 +17,7 @@ final class SourcePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sources = ref.watch(sourceControllerProvider);
+    final selectedId = ref.watch(sourceSelectionProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -44,7 +46,13 @@ final class SourcePage extends ConsumerWidget {
             ref.read(sourceControllerProvider.notifier).reload();
           },
         ),
-        data: (items) => _SourceLayout(sources: items),
+        data: (items) => _SourceLayout(
+          sources: items,
+          selectedId: selectedId,
+          onSelected: (id) {
+            ref.read(sourceSelectionProvider.notifier).select(id);
+          },
+        ),
       ),
     );
   }
@@ -73,9 +81,15 @@ final class SourcePage extends ConsumerWidget {
 }
 
 final class _SourceLayout extends StatelessWidget {
-  const _SourceLayout({required this.sources});
+  const _SourceLayout({
+    required this.sources,
+    required this.selectedId,
+    required this.onSelected,
+  });
 
   final List<StoredSource> sources;
+  final int? selectedId;
+  final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +101,11 @@ final class _SourceLayout extends StatelessWidget {
               SizedBox(
                 key: const Key('source-master-pane'),
                 width: 320,
-                child: SourceList(sources: sources),
+                child: SourceList(
+                  sources: sources,
+                  selectedId: selectedId,
+                  onSelected: onSelected,
+                ),
               ),
               const VerticalDivider(width: 1),
               const Expanded(
@@ -102,7 +120,11 @@ final class _SourceLayout extends StatelessWidget {
 
         return SizedBox.expand(
           key: const Key('source-master-pane'),
-          child: SourceList(sources: sources),
+          child: SourceList(
+            sources: sources,
+            selectedId: selectedId,
+            onSelected: onSelected,
+          ),
         );
       },
     );
