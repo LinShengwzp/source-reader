@@ -32,6 +32,14 @@ abstract interface class SourceRepository {
     required SourceDocument document,
   });
 
+  /// 以存储实现能够保证的原子语义批量写入书源。
+  ///
+  /// 返回值顺序必须与 [documents] 输入顺序一致。
+  Future<List<int>> insertSources({
+    required String platform,
+    required List<SourceDocument> documents,
+  });
+
   Future<void> updateSource(int id, SourceDocument document);
 
   Future<void> deleteSource(int id);
