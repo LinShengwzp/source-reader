@@ -52,4 +52,48 @@ void main() {
     );
     expect(SourceDocument.fromRaw(<String, Object?>{}).sourceType, isNull);
   });
+
+  test('searchBook 使用 typed facade 且替换时保留其他顶层 raw 字段', () {
+    final source = SourceDocument.fromRaw(<String, Object?>{
+      'sourceName': 'A',
+      'futureTop': <String, Object?>{'keep': true},
+      'searchBook': <String, Object?>{
+        'actionID': 'searchBook',
+        'parserID': 'DOM',
+        'bookName': './/h3/text()',
+        'futureSearchField': 'keep-nested',
+      },
+    });
+
+    expect(source.searchBook?.bookName, './/h3/text()');
+
+    final changedSearch = source.searchBook!.copyWithKnownFields(
+      bookName: './/h2/text()',
+    );
+    final replaced = source.copyWithSearchBook(changedSearch);
+
+    expect(replaced.searchBook?.bookName, './/h2/text()');
+    expect(replaced.toRaw()['futureTop'], <String, Object?>{'keep': true});
+    expect(
+      replaced.searchBook?.toRaw()['futureSearchField'],
+      'keep-nested',
+    );
+  });
+
+  test('searchBook 非 Map 或包含非字符串 key 时 getter 返回 null 且 raw 原值保留', () {
+    final malformed = SourceDocument.fromRaw(<String, Object?>{
+      'searchBook': 'legacy-invalid-value',
+    });
+    expect(malformed.searchBook, isNull);
+    expect(malformed.toRaw()['searchBook'], 'legacy-invalid-value');
+
+    final nonStringKey = SourceDocument.fromRaw(<String, Object?>{
+      'searchBook': <Object?, Object?>{
+        'actionID': 'searchBook',
+        1: 'invalid-key',
+      },
+    });
+    expect(nonStringKey.searchBook, isNull);
+    expect(nonStringKey.toRaw()['searchBook'], isA<Map<Object?, Object?>>());
+  });
 }
