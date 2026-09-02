@@ -122,6 +122,77 @@ void main() {
     expect(state.hasValue, isTrue);
     expect(state.requireValue.single.document.sourceName, '保留书源');
   });
+
+  test('updateSource 成功后调用 Repository 并 reload 当前列表', () async {
+    final fake = FakeSourceRepository(<StoredSource>[
+      _storedSource(id: 1, name: '旧名称'),
+    ]);
+    final container = ProviderContainer(
+      overrides: [sourceRepositoryProvider.overrideWithValue(fake)],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(sourceControllerProvider.future);
+    final updated = SourceDocument.fromRaw(<String, Object?>{
+      'sourceName': '新名称',
+      'enable': '1',
+      'weight': '0',
+    });
+
+    await container.read(sourceControllerProvider.notifier).updateSource(
+          id: 1,
+          document: updated,
+        );
+
+    expect(fake.updateCalls, 1);
+    expect(fake.updatedId, 1);
+    expect(fake.updatedDocument, same(updated));
+    expect(fake.listCalls, 2);
+    expect(
+      container
+          .read(sourceControllerProvider)
+          .requireValue
+          .single
+          .document
+          .sourceName,
+      '新名称',
+    );
+  });
+
+  test('updateSource 失败时不 reload、不污染当前列表并继续抛原异常', () async {
+    final error = StateError('update failed');
+    final fake = FakeSourceRepository(
+      <StoredSource>[_storedSource(id: 1, name: '保留名称')],
+    )..updateError = error;
+    final container = ProviderContainer(
+      overrides: [sourceRepositoryProvider.overrideWithValue(fake)],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(sourceControllerProvider.future);
+
+    await expectLater(
+      container.read(sourceControllerProvider.notifier).updateSource(
+            id: 1,
+            document: SourceDocument.fromRaw(<String, Object?>{
+              'sourceName': '失败名称',
+            }),
+          ),
+      throwsA(same(error)),
+    );
+
+    expect(fake.updateCalls, 1);
+    expect(fake.listCalls, 1);
+    expect(
+      container
+          .read(sourceControllerProvider)
+          .requireValue
+          .single
+          .document
+          .sourceName,
+      '保留名称',
+    );
+  });
 }
 
 final class FakeSourceRepository implements SourceRepository {
@@ -129,8 +200,12 @@ final class FakeSourceRepository implements SourceRepository {
 
   List<StoredSource> items;
   final Object? insertError;
+  Object? updateError;
   int listCalls = 0;
   int insertCalls = 0;
+  int updateCalls = 0;
+  int? updatedId;
+  SourceDocument? updatedDocument;
 
   @override
   Future<List<StoredSource>> listSources() async {
@@ -185,8 +260,30 @@ final class FakeSourceRepository implements SourceRepository {
   }
 
   @override
-  Future<void> updateSource(int id, SourceDocument document) =>
-      throw UnimplementedError();
+  Future<void> updateSource(int id, SourceDocument document) async {
+    updateCalls += 1;
+    updatedId = id;
+    updatedDocument = document;
+
+    final error = updateError;
+    if (error != null) {
+      throw error;
+    }
+
+    final index = items.indexWhere((item) => item.id == id);
+    if (index < 0) {
+      throw StateError('source not found: $id');
+    }
+
+    final current = items[index];
+    items[index] = StoredSource(
+      id: current.id,
+      platform: current.platform,
+      document: document,
+      createdAt: current.createdAt,
+      updatedAt: DateTime.utc(2026, 9, 2, 9),
+    );
+  }
 
   @override
   Future<void> deleteSource(int id) => throw UnimplementedError();
