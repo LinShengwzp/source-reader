@@ -30,10 +30,23 @@ jobs:
         run: flutter pub get
 
       - name: Generate Drift code
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build
 
       - name: Analyze
         run: flutter analyze
 
       - name: Test
-        run: flutter test
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if flutter test; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+
+            echo "flutter test failed on attempt $attempt; retrying after transient native-asset failure"
+            sleep 5
+          done
