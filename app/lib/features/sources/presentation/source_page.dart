@@ -4,11 +4,13 @@ import 'package:source_reader/features/sources/application/source_controller.dar
 import 'package:source_reader/features/sources/application/source_providers.dart';
 import 'package:source_reader/features/sources/application/source_selection.dart';
 import 'package:source_reader/features/sources/data/source_repository.dart';
+import 'package:source_reader/features/sources/domain/source_document.dart';
+import 'package:source_reader/features/sources/presentation/source_editor.dart';
 import 'package:source_reader/features/sources/presentation/source_list.dart';
 
 /// Source Workbench 第一阶段页面壳。
 ///
-/// 只负责展示加载状态与宽窄屏布局，不在 Presentation 层直接访问数据库。
+/// 负责列表、当前选择与编辑器的组合，不在 Presentation 层直接访问数据库。
 final class SourcePage extends ConsumerWidget {
   const SourcePage({super.key});
 
@@ -18,6 +20,19 @@ final class SourcePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sources = ref.watch(sourceControllerProvider);
     final selectedId = ref.watch(sourceSelectionProvider);
+
+    ref.listen(sourceControllerProvider, (previous, next) {
+      next.whenData((items) {
+        final currentId = ref.read(sourceSelectionProvider);
+        if (currentId == null) {
+          return;
+        }
+        final stillExists = items.any((item) => item.id == currentId);
+        if (!stillExists) {
+          ref.read(sourceSelectionProvider.notifier).clear();
+        }
+      });
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -52,6 +67,11 @@ final class SourcePage extends ConsumerWidget {
           onSelected: (id) {
             ref.read(sourceSelectionProvider.notifier).select(id);
           },
+          onBack: () {
+            ref.read(sourceSelectionProvider.notifier).clear();
+          },
+          onSave: (source, document) =>
+              _saveSource(context, ref, source, document),
         ),
       ),
     );
@@ -78,21 +98,60 @@ final class SourcePage extends ConsumerWidget {
       );
     }
   }
+
+  Future<void> _saveSource(
+    BuildContext context,
+    WidgetRef ref,
+    StoredSource source,
+    SourceDocument document,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(sourceControllerProvider.notifier).updateSource(
+            id: source.id,
+            document: document,
+          );
+      if (!messenger.mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('已保存')),
+      );
+    } catch (error) {
+      if (!messenger.mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(content: Text('保存失败：$error')),
+      );
+    }
+  }
 }
+
+typedef _SourceSaveCallback = Future<void> Function(
+  StoredSource source,
+  SourceDocument document,
+);
 
 final class _SourceLayout extends StatelessWidget {
   const _SourceLayout({
     required this.sources,
     required this.selectedId,
     required this.onSelected,
+    required this.onBack,
+    required this.onSave,
   });
 
   final List<StoredSource> sources;
   final int? selectedId;
   final ValueChanged<int> onSelected;
+  final VoidCallback onBack;
+  final _SourceSaveCallback onSave;
 
   @override
   Widget build(BuildContext context) {
+    final selectedSource = _findSelectedSource();
+
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= SourcePage._wideBreakpoint) {
@@ -108,13 +167,28 @@ final class _SourceLayout extends StatelessWidget {
                 ),
               ),
               const VerticalDivider(width: 1),
-              const Expanded(
-                key: Key('source-detail-pane'),
-                child: Center(
-                  child: Text('选择一个书源开始编辑'),
-                ),
+              Expanded(
+                key: const Key('source-detail-pane'),
+                child: selectedSource == null
+                    ? const Center(
+                        child: Text('选择一个书源开始编辑'),
+                      )
+                    : SourceEditor(
+                        source: selectedSource,
+                        onSave: (document) => onSave(selectedSource, document),
+                      ),
               ),
             ],
+          );
+        }
+
+        if (selectedSource != null) {
+          return SizedBox.expand(
+            child: SourceEditor(
+              source: selectedSource,
+              onSave: (document) => onSave(selectedSource, document),
+              onBack: onBack,
+            ),
           );
         }
 
@@ -128,6 +202,19 @@ final class _SourceLayout extends StatelessWidget {
         );
       },
     );
+  }
+
+  StoredSource? _findSelectedSource() {
+    final id = selectedId;
+    if (id == null) {
+      return null;
+    }
+    for (final source in sources) {
+      if (source.id == id) {
+        return source;
+      }
+    }
+    return null;
   }
 }
 
