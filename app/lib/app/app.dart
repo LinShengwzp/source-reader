@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:source_reader/features/sources/presentation/source_page.dart';
 
 final class SourceReaderApp extends StatelessWidget {
   const SourceReaderApp({super.key});
@@ -8,11 +9,7 @@ final class SourceReaderApp extends StatelessWidget {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Source Reader',
-      home: Scaffold(
-        body: Center(
-          child: Text('Source Workbench'),
-        ),
-      ),
+      home: SourcePage(),
     );
   }
 }
