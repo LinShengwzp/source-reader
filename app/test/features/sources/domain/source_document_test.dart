@@ -40,4 +40,16 @@ void main() {
     exported['sourceName'] = 'C';
     expect(source.sourceName, 'A');
   });
+
+  test('sourceType 只读取字符串字段', () {
+    expect(
+      SourceDocument.fromRaw(<String, Object?>{'sourceType': 'text'}).sourceType,
+      'text',
+    );
+    expect(
+      SourceDocument.fromRaw(<String, Object?>{'sourceType': 1}).sourceType,
+      isNull,
+    );
+    expect(SourceDocument.fromRaw(<String, Object?>{}).sourceType, isNull);
+  });
 }
