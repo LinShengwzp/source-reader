@@ -15,6 +15,8 @@ final class SourceDocument {
 
   String? get sourceUrl => _stringValue('sourceUrl');
 
+  String? get sourceType => _stringValue('sourceType');
+
   bool get enabled {
     final value = _raw['enable'];
     if (value is bool) {
