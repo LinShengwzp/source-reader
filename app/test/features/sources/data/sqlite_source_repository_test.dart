@@ -175,6 +175,81 @@ void main() {
 
       expect(otherPlatformId, greaterThan(0));
     });
+
+    test('insertSources 批量写入并按输入顺序返回 id', () async {
+      final ids = await repository.insertSources(
+        platform: 'StandarReader',
+        documents: <SourceDocument>[
+          _source(name: '批量 A'),
+          _source(name: '批量 B'),
+        ],
+      );
+
+      expect(ids, hasLength(2));
+      expect(ids[0], lessThan(ids[1]));
+
+      final stored = await repository.listSources();
+      expect(
+        stored.map((item) => item.document.sourceName),
+        <String?>['批量 A', '批量 B'],
+      );
+      expect(stored.every((item) => item.createdAt == now), isTrue);
+      expect(stored.every((item) => item.updatedAt == now), isTrue);
+    });
+
+    test('insertSources 遇到数据库已有重名时整批回滚', () async {
+      await repository.insertSource(
+        platform: 'StandarReader',
+        document: _source(name: '已存在'),
+      );
+
+      await expectLater(
+        repository.insertSources(
+          platform: 'StandarReader',
+          documents: <SourceDocument>[
+            _source(name: '本应回滚'),
+            _source(name: '已存在'),
+            _source(name: '不会写入'),
+          ],
+        ),
+        throwsA(isA<Exception>()),
+      );
+
+      final stored = await repository.listSources();
+      expect(stored, hasLength(1));
+      expect(stored.single.document.sourceName, '已存在');
+    });
+
+    test('insertSources 批次内部重名时整批回滚', () async {
+      await expectLater(
+        repository.insertSources(
+          platform: 'StandarReader',
+          documents: <SourceDocument>[
+            _source(name: '重复'),
+            _source(name: '重复'),
+          ],
+        ),
+        throwsA(isA<Exception>()),
+      );
+
+      expect(await repository.listSources(), isEmpty);
+    });
+
+    test('insertSources 在写入前校验全部 sourceName', () async {
+      await expectLater(
+        repository.insertSources(
+          platform: 'StandarReader',
+          documents: <SourceDocument>[
+            _source(name: '合法'),
+            _source(name: '   '),
+            _source(name: '也不应写入'),
+          ],
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      expect(await repository.listSources(), isEmpty);
+    });
   });
 }
 
