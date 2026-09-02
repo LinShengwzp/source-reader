@@ -39,7 +39,7 @@ final class SqliteSourceRepository implements SourceRepository {
   Future<int> insertSource({
     required String platform,
     required SourceDocument document,
-  }) {
+  }) async {
     final name = _requireSourceName(document);
     final timestamp = _now();
 
@@ -102,8 +102,8 @@ final class SqliteSourceRepository implements SourceRepository {
       id: row.id,
       platform: row.platform,
       document: SourceDocument.fromRaw(decoded),
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
+      createdAt: row.createdAt.toUtc(),
+      updatedAt: row.updatedAt.toUtc(),
     );
   }
 
