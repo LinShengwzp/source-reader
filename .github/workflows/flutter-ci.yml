@@ -1,0 +1,36 @@
+name: Flutter CI
+
+on:
+  push:
+    branches:
+      - revival/flutter-workbench
+  pull_request:
+    branches:
+      - revival/flutter-workbench
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Flutter 3.47.0
+        shell: bash
+        run: |
+          git clone --depth 1 --branch 3.47.0 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test

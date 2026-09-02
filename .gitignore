@@ -23,3 +23,20 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 本机环境配置
+.env
+.env.*
+!.env.example
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+app/.metadata
+app/android/.gradle/
+app/ios/Pods/
+app/macos/Pods/
