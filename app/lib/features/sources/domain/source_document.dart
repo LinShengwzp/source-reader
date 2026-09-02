@@ -1,3 +1,5 @@
+import 'package:source_reader/features/sources/domain/source_search_book_document.dart';
+
 /// 书源文档的领域边界。
 ///
 /// raw JSON 是唯一事实来源。这里只为当前已知字段提供类型化访问，
@@ -16,6 +18,23 @@ final class SourceDocument {
   String? get sourceUrl => _stringValue('sourceUrl');
 
   String? get sourceType => _stringValue('sourceType');
+
+  SourceSearchBookDocument? get searchBook {
+    final value = _raw['searchBook'];
+    if (value is! Map) {
+      return null;
+    }
+
+    final converted = <String, Object?>{};
+    for (final entry in value.entries) {
+      final key = entry.key;
+      if (key is! String) {
+        return null;
+      }
+      converted[key] = entry.value;
+    }
+    return SourceSearchBookDocument.fromRaw(converted);
+  }
 
   bool get enabled {
     final value = _raw['enable'];
@@ -71,6 +90,13 @@ final class SourceDocument {
       raw['weight'] = _encodeWeight(weight, raw['weight']);
     }
 
+    return SourceDocument.fromRaw(raw);
+  }
+
+  /// 只替换 `searchBook` 子对象，不修改其他顶层 raw 字段。
+  SourceDocument copyWithSearchBook(SourceSearchBookDocument searchBook) {
+    final raw = toRaw();
+    raw['searchBook'] = searchBook.toRaw();
     return SourceDocument.fromRaw(raw);
   }
 
