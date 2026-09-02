@@ -40,22 +40,41 @@ final class SqliteSourceRepository implements SourceRepository {
     required String platform,
     required SourceDocument document,
   }) async {
-    final name = _requireSourceName(document);
-    final timestamp = _now();
+    final ids = await insertSources(
+      platform: platform,
+      documents: <SourceDocument>[document],
+    );
+    return ids.single;
+  }
 
-    return _database.into(_database.sourceRows).insert(
-          SourceRowsCompanion.insert(
-            platform: platform,
-            sourceName: name,
-            sourceType: Value<String?>(document.sourceType),
-            sourceUrl: Value<String?>(document.sourceUrl),
-            enabled: document.enabled,
-            weight: document.weight,
-            rawJson: jsonEncode(document.toRaw()),
-            createdAt: timestamp,
-            updatedAt: timestamp,
-          ),
-        );
+  @override
+  Future<List<int>> insertSources({
+    required String platform,
+    required List<SourceDocument> documents,
+  }) async {
+    // 先完成整批校验，避免在进入事务后才发现明显的领域错误。
+    final names = documents.map(_requireSourceName).toList(growable: false);
+    if (documents.isEmpty) {
+      return const <int>[];
+    }
+
+    final timestamp = _now();
+    return _database.transaction(() async {
+      final ids = <int>[];
+      for (var index = 0; index < documents.length; index++) {
+        final document = documents[index];
+        final id = await _database.into(_database.sourceRows).insert(
+              _toInsertCompanion(
+                platform: platform,
+                name: names[index],
+                document: document,
+                timestamp: timestamp,
+              ),
+            );
+        ids.add(id);
+      }
+      return ids;
+    });
   }
 
   @override
@@ -90,6 +109,25 @@ final class SqliteSourceRepository implements SourceRepository {
     await (_database.delete(_database.sourceRows)
           ..where((row) => row.id.equals(id)))
         .go();
+  }
+
+  SourceRowsCompanion _toInsertCompanion({
+    required String platform,
+    required String name,
+    required SourceDocument document,
+    required DateTime timestamp,
+  }) {
+    return SourceRowsCompanion.insert(
+      platform: platform,
+      sourceName: name,
+      sourceType: Value<String?>(document.sourceType),
+      sourceUrl: Value<String?>(document.sourceUrl),
+      enabled: document.enabled,
+      weight: document.weight,
+      rawJson: jsonEncode(document.toRaw()),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    );
   }
 
   StoredSource _toStoredSource(SourceRow row) {

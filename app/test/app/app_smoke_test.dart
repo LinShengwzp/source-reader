@@ -40,6 +40,12 @@ final class _EmptySourceRepository implements SourceRepository {
   }) => throw UnimplementedError();
 
   @override
+  Future<List<int>> insertSources({
+    required String platform,
+    required List<SourceDocument> documents,
+  }) => throw UnimplementedError();
+
+  @override
   Future<void> updateSource(int id, SourceDocument document) =>
       throw UnimplementedError();
 
