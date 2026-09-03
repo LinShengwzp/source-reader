@@ -1,0 +1,38 @@
+name: Capture Flutter Resolved State
+
+on:
+  push:
+    branches:
+      - revival/flutter-workbench
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Flutter 3.47.0
+        shell: bash
+        run: |
+          git clone --depth 1 --branch 3.47.0 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Resolve project state
+        run: flutter pub get
+
+      - name: Show generated diff
+        working-directory: .
+        run: git diff -- app/pubspec.lock app/analysis_options.yaml
+
+      - name: Upload resolved files
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-resolved-state
+          path: |
+            app/pubspec.lock
+            app/analysis_options.yaml
+          if-no-files-found: error
+          retention-days: 1
