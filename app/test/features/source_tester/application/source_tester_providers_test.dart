@@ -23,7 +23,7 @@ void main() {
     final resultParser = SearchBookResultParser();
 
     final container = ProviderContainer(
-      overrides: <Override>[
+      overrides: [
         sourceRepositoryProvider.overrideWithValue(repository),
         sourceHttpExecutorProvider.overrideWithValue(executor),
         sourceRequestBuilderProvider.overrideWithValue(requestBuilder),
@@ -48,7 +48,7 @@ void main() {
 
   test('默认 provider 暴露明确的 request/decoder/parser/result 边界', () {
     final container = ProviderContainer(
-      overrides: <Override>[
+      overrides: [
         sourceRepositoryProvider.overrideWithValue(_ProviderRepository()),
         sourceHttpExecutorProvider.overrideWithValue(_ProviderExecutor()),
       ],
