@@ -66,8 +66,16 @@ void main() {
     await tester.enterText(bookName, './/h2/text()');
     await tester.pump();
 
+    final editorList = find.descendant(
+      of: find.byKey(const Key('source-detail-pane')),
+      matching: find.byType(ListView),
+    );
+    expect(editorList, findsOneWidget);
+    await tester.drag(editorList, const Offset(0, 600));
+    await tester.pumpAndSettle();
+
     final saveButton = find.byKey(const Key('source-editor-save'));
-    await tester.ensureVisible(saveButton);
+    expect(saveButton, findsOneWidget);
     await tester.tap(saveButton);
     await tester.pumpAndSettle();
 
