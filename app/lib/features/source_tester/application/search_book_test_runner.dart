@@ -10,34 +10,28 @@ import 'package:source_reader/features/sources/data/source_repository.dart';
 /// 串联一次基于已持久化书源的 `searchBook` 测试。
 final class SearchBookTestRunner {
   const SearchBookTestRunner({
-    required SourceRepository repository,
-    required SourceRequestBuilder requestBuilder,
-    required SourceHttpExecutor httpExecutor,
-    required SourceResponseDecoder responseDecoder,
-    required SourceRuleParser htmlParser,
-    required SourceRuleParser jsonParser,
-    required SearchBookResultParser resultParser,
-  })  : _repository = repository,
-        _requestBuilder = requestBuilder,
-        _httpExecutor = httpExecutor,
-        _responseDecoder = responseDecoder,
-        _htmlParser = htmlParser,
-        _jsonParser = jsonParser,
-        _resultParser = resultParser;
+    required this.repository,
+    required this.requestBuilder,
+    required this.httpExecutor,
+    required this.responseDecoder,
+    required this.htmlParser,
+    required this.jsonParser,
+    required this.resultParser,
+  });
 
-  final SourceRepository _repository;
-  final SourceRequestBuilder _requestBuilder;
-  final SourceHttpExecutor _httpExecutor;
-  final SourceResponseDecoder _responseDecoder;
-  final SourceRuleParser _htmlParser;
-  final SourceRuleParser _jsonParser;
-  final SearchBookResultParser _resultParser;
+  final SourceRepository repository;
+  final SourceRequestBuilder requestBuilder;
+  final SourceHttpExecutor httpExecutor;
+  final SourceResponseDecoder responseDecoder;
+  final SourceRuleParser htmlParser;
+  final SourceRuleParser jsonParser;
+  final SearchBookResultParser resultParser;
 
   Future<SearchBookTestReport> run({
     required int sourceId,
     required SearchBookTestInput input,
   }) async {
-    final source = await _repository.getSource(sourceId);
+    final source = await repository.getSource(sourceId);
     if (source == null) {
       throw const SourceTestException(SourceTestFailureReason.sourceNotFound);
     }
@@ -53,22 +47,22 @@ final class SearchBookTestRunner {
       throw const SourceTestException(SourceTestFailureReason.searchBookMissing);
     }
 
-    final builtRequest = _requestBuilder.build(source: source, input: input);
-    final response = await _httpExecutor.execute(builtRequest.request);
-    final decoded = _responseDecoder.decode(
+    final builtRequest = requestBuilder.build(source: source, input: input);
+    final response = await httpExecutor.execute(builtRequest.request);
+    final decoded = responseDecoder.decode(
       response: response,
       configuredEncoding: searchBook.action.responseEncode,
     );
     final parser = switch (searchBook.action.responseFormatType?.trim()) {
-      'html' => _htmlParser,
-      'json' => _jsonParser,
+      'html' => htmlParser,
+      'json' => jsonParser,
       final unsupported => throw SourceTestException(
           SourceTestFailureReason.unsupportedResponseFormat,
           message: unsupported,
         ),
     };
 
-    final parsed = _resultParser.parse(
+    final parsed = resultParser.parse(
       searchBook: searchBook,
       parser: parser,
       responseText: decoded.text,
