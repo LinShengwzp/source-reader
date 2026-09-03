@@ -1,5 +1,3 @@
-import 'package:html/dom.dart';
-import 'package:html/parser.dart' as html_parser;
 import 'package:source_reader/features/source_tester/application/source_rule_parser.dart';
 import 'package:source_reader/features/source_tester/domain/source_rule_value.dart';
 import 'package:source_reader/features/source_tester/domain/source_test_error.dart';
@@ -9,12 +7,8 @@ final class HtmlXPathRuleParser implements SourceRuleParser {
   @override
   SourceRuleContext createRoot(String responseText) {
     try {
-      final document = html_parser.parse(responseText);
-      final root = document.documentElement;
-      if (root == null) {
-        throw const FormatException('HTML document has no root element');
-      }
-      return _HtmlRuleContext(root);
+      final xpath = HtmlXPath.html(responseText);
+      return _HtmlRuleContext(xpath.root as HtmlNodeTree);
     } catch (error) {
       throw SourceTestException(
         SourceTestFailureReason.responseParseFailure,
@@ -39,9 +33,11 @@ final class HtmlXPathRuleParser implements SourceRuleParser {
     }
 
     try {
-      final result = HtmlXPath.node(context.node).query(trimmed);
+      final result = HtmlXPath(context.node).query(trimmed);
       final contexts = result.nodes
-          .map<SourceRuleContext>((node) => _HtmlRuleContext(node.node))
+          .map<SourceRuleContext>(
+            (node) => _HtmlRuleContext(HtmlNodeTree(node.node)),
+          )
           .toList(growable: false);
 
       final rawValues = result.attrs.isNotEmpty
@@ -67,7 +63,7 @@ final class HtmlXPathRuleParser implements SourceRuleParser {
 final class _HtmlRuleContext implements SourceRuleContext {
   const _HtmlRuleContext(this.node);
 
-  final Node node;
+  final HtmlNodeTree node;
 
   @override
   SourceRuleValue summarize() => SourceRuleScalar(node.text);
