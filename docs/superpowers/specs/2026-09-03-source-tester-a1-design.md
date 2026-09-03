@@ -211,7 +211,14 @@ Top-level raw `httpHeaders` may be either:
 
 A `searchBook.httpHeaders` extension may use the same representations and overrides global headers by case-insensitive header name.
 
-Invalid header shapes produce trace warnings or a structured configuration error according to whether the entire header set is unusable. The implementation must never inject a hidden browser User-Agent.
+Header normalization is deterministic:
+
+- missing headers -> empty set
+- a Map or JSON object -> accept string, number, and boolean values and convert values to strings
+- null, list, or nested-object values -> skip that entry and record a warning
+- a header JSON string that is invalid JSON or does not decode to an object -> `invalidHeaders` and do not send the request
+
+The implementation must never inject a hidden browser User-Agent.
 
 ## 7. HTTP execution
 
@@ -252,9 +259,9 @@ The decoded body is retained for inspection.
 
 ## 9. Parser compatibility layer
 
-### 9.1 Registry
+### 9.1 Registry and format selection
 
-Define Source Reader-owned parser interfaces. Parser selection is based on `responseFormatType`.
+Define Source Reader-owned parser interfaces. Parser selection is based on persisted `responseFormatType`.
 
 A1 parser mapping:
 
@@ -263,7 +270,9 @@ html -> XPath parser
 json -> JSON parser
 ```
 
-Other response format types return a structured unsupported-format result in A1.
+Historical missing `responseFormatType` is treated as the legacy default `str`, not inferred from `parserID=DOM`. `str` and every other format (`base64str`, `xml`, `data`, `filePath`, unknown values) are unsupported for declarative parsing in A1 and produce `unsupportedResponseFormat`.
+
+This is intentional: A1 does not silently reinterpret a source's persisted format as HTML or JSON.
 
 ### 9.2 HTML XPath
 
@@ -533,6 +542,7 @@ Cover at least:
 - header parsing and override
 - response encoding selection
 - malformed UTF-8 warning
+- missing `responseFormatType` treated as `str` / unsupported in A1
 - pipeline tokenization without breaking nested/quoted `||`
 - supported prefix plus unsupported JS partial result
 - HTML XPath list extraction
