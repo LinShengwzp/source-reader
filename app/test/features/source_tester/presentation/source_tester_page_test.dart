@@ -105,6 +105,13 @@ void main() {
     await tester.tap(find.byKey(const Key('source-tester-tab-traces')));
     await tester.pumpAndSettle();
 
+    final traceList = find.descendant(
+      of: find.byKey(const Key('source-tester-report')),
+      matching: find.byType(ListView),
+    ).last;
+    await tester.drag(traceList, const Offset(0, -500));
+    await tester.pumpAndSettle();
+
     expect(find.textContaining('JS 阶段未执行'), findsOneWidget);
     expect(find.textContaining('部分执行'), findsOneWidget);
   });
