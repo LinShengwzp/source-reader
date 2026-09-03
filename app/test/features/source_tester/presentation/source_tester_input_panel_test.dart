@@ -94,6 +94,40 @@ void main() {
     await _testInvalidOffset(tester, '');
   });
 
+  testWidgets('行为 5d：非法 offset 收起高级区域后仍阻止回调并重新展开显示错误', (tester) async {
+    var callCount = 0;
+
+    await tester.pumpWidget(
+      _wrap(
+        SourceTesterInputPanel(
+          running: false,
+          onRun: (_) => callCount++,
+        ),
+      ),
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('source-tester-input-keyword')),
+      '测试小说',
+    );
+    await tester.tap(find.byKey(const Key('source-tester-input-advanced-toggle')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('source-tester-input-offset')), '-1');
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('source-tester-input-advanced-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('source-tester-input-advanced')), findsNothing);
+
+    await tester.ensureVisible(find.byKey(const Key('source-tester-input-run')));
+    await tester.tap(find.byKey(const Key('source-tester-input-run')));
+    await tester.pumpAndSettle();
+
+    expect(callCount, 0);
+    expect(find.byKey(const Key('source-tester-input-advanced')), findsOneWidget);
+    expect(_errorTexts(tester), isNotEmpty);
+  });
+
   testWidgets('行为 6：默认高级参数运行时回调 trim 后的 keyword 与默认 pageIndex/offset/filter',
       (tester) async {
     final calls = <SourceTesterInput>[];
