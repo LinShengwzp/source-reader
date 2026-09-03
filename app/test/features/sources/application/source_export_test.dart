@@ -238,13 +238,24 @@ void main() {
       );
     });
 
-    test('Repository 读取异常原样向上传播', () async {
+    test('Repository 当前读取异常原样向上传播', () async {
       final error = StateError('read failed');
       final repository = _FakeSourceRepository(getError: error);
       final service = SourceExportService(repository);
 
       await expectLater(
         service.buildCurrent(id: 1, format: SourceExportFormat.json),
+        throwsA(same(error)),
+      );
+    });
+
+    test('Repository 列表读取异常原样向上传播', () async {
+      final error = StateError('list failed');
+      final repository = _FakeSourceRepository(listError: error);
+      final service = SourceExportService(repository);
+
+      await expectLater(
+        service.buildAll(format: SourceExportFormat.json),
         throwsA(same(error)),
       );
     });
