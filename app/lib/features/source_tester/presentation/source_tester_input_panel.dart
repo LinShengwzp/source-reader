@@ -62,12 +62,27 @@ class _SourceTesterInputFormState extends State<_SourceTesterInputForm> {
 
   void _handleRun() {
     if (widget.running) return;
+
+    final offset = int.tryParse(_offsetController.text.trim());
+    if (offset == null || offset < 0) {
+      if (!_advancedExpanded) {
+        setState(() => _advancedExpanded = true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _formKey.currentState?.validate();
+          }
+        });
+      } else {
+        _formKey.currentState?.validate();
+      }
+      return;
+    }
+
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) return;
 
     final pageIndex = int.tryParse(_pageIndexController.text.trim());
-    final offset = int.tryParse(_offsetController.text.trim());
-    if (pageIndex == null || offset == null) return;
+    if (pageIndex == null) return;
 
     widget.onRun(
       SourceTesterInput(
