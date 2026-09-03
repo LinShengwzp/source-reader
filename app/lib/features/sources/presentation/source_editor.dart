@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:source_reader/features/sources/data/source_repository.dart';
 import 'package:source_reader/features/sources/domain/source_document.dart';
+import 'package:source_reader/features/sources/presentation/source_basic_editor_section.dart';
 import 'package:source_reader/features/sources/presentation/source_editor_draft.dart';
+import 'package:source_reader/features/sources/presentation/source_search_book_draft.dart';
+import 'package:source_reader/features/sources/presentation/source_search_book_editor.dart';
 
 typedef SourceDocumentSaveCallback = Future<void> Function(SourceDocument document);
 
@@ -21,6 +24,7 @@ final class _SourceEditorState extends State<SourceEditor> {
   late final TextEditingController _nameController;
   late final TextEditingController _urlController;
   late final TextEditingController _weightController;
+  late SourceSearchBookDraft _searchBookDraft;
   bool _enabled = false;
   bool _saving = false;
 
@@ -50,26 +54,32 @@ final class _SourceEditorState extends State<SourceEditor> {
   }
 
   void _loadSource(StoredSource source) {
-    final draft = SourceEditorDraft.fromDocument(source.document);
-    _nameController.text = draft.sourceName;
-    _urlController.text = draft.sourceUrl;
-    _weightController.text = draft.weight;
-    _enabled = draft.enabled;
+    final basic = SourceEditorDraft.fromDocument(source.document);
+    _nameController.text = basic.sourceName;
+    _urlController.text = basic.sourceUrl;
+    _weightController.text = basic.weight;
+    _enabled = basic.enabled;
+    _searchBookDraft = SourceSearchBookDraft.fromDocument(source.document.searchBook);
   }
 
   Future<void> _save() async {
-    if (_saving || !_formKey.currentState!.validate()) {
-      return;
-    }
+    if (_saving) return;
+
+    final basicValid = _formKey.currentState!.validate();
+    final searchBookValid = _searchBookDraft.moreKeysValidationError == null;
+    if (!basicValid || !searchBookValid) return;
+
     setState(() => _saving = true);
     try {
-      final draft = SourceEditorDraft(
+      final basicDraft = SourceEditorDraft(
         sourceName: _nameController.text,
         sourceUrl: _urlController.text,
         enabled: _enabled,
         weight: _weightController.text,
       );
-      await widget.onSave(draft.applyTo(widget.source.document));
+      final withBasicFields = basicDraft.applyTo(widget.source.document);
+      final document = _searchBookDraft.applyTo(withBasicFields);
+      await widget.onSave(document);
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -93,45 +103,19 @@ final class _SourceEditorState extends State<SourceEditor> {
                 child: const Text('返回'),
               ),
             ),
-          TextFormField(
-            key: const Key('source-editor-name'),
-            controller: _nameController,
-            decoration: const InputDecoration(labelText: '书源名称'),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return '书源名称不能为空';
-              }
-              return null;
-            },
+          SourceBasicEditorSection(
+            nameController: _nameController,
+            urlController: _urlController,
+            weightController: _weightController,
+            enabled: _enabled,
+            onEnabledChanged: (value) => setState(() => _enabled = value),
           ),
-          const SizedBox(height: 12),
-          TextFormField(
-            key: const Key('source-editor-url'),
-            controller: _urlController,
-            decoration: const InputDecoration(labelText: '书源地址'),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              const Text('启用'),
-              const SizedBox(width: 12),
-              Switch(
-                key: const Key('source-editor-enabled'),
-                value: _enabled,
-                onChanged: (value) => setState(() => _enabled = value),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            key: const Key('source-editor-weight'),
-            controller: _weightController,
-            decoration: const InputDecoration(labelText: '权重'),
-            validator: (value) {
-              if (value == null || int.tryParse(value.trim()) == null) {
-                return '权重必须是整数';
-              }
-              return null;
+          const SizedBox(height: 24),
+          SearchBookEditor(
+            key: ValueKey<int>(widget.source.id),
+            value: _searchBookDraft,
+            onChanged: (value) {
+              setState(() => _searchBookDraft = value);
             },
           ),
           const SizedBox(height: 24),
