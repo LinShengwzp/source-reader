@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -172,7 +173,7 @@ SourceHttpResponse _response() {
   return SourceHttpResponse(
     statusCode: 200,
     headers: const <String, String>{'content-type': 'text/html; charset=utf-8'},
-    bodyBytes: body.codeUnits,
+    bodyBytes: utf8.encode(body),
     finalUri: Uri.parse('https://example.com/search?q=test&page=1'),
     duration: const Duration(milliseconds: 40),
   );
