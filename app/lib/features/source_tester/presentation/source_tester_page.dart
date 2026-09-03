@@ -139,8 +139,8 @@ final class _SourceTesterPageState extends ConsumerState<SourceTesterPage> {
                 ),
               ),
             Expanded(
-              child: _report case final report?
-                  ? SourceTesterReportView(report: report)
+              child: _report != null
+                  ? SourceTesterReportView(report: _report!)
                   : const Center(child: Text('输入关键词后运行搜索测试。')),
             ),
           ],
