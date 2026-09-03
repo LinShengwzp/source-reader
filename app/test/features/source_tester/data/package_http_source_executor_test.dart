@@ -41,7 +41,7 @@ void main() {
       expect(response.headers['x-response'], 'yes');
       expect(utf8.decode(response.bodyBytes), 'ok');
       expect(response.finalUri, Uri.parse('https://example.com/final'));
-      expect(response.duration, isNot(isNegative));
+      expect(response.duration.isNegative, isFalse);
       expect(client.closed, isFalse);
 
       executor.close();
