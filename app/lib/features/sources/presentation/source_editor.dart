@@ -111,18 +111,18 @@ final class _SourceEditorState extends State<SourceEditor> {
             onEnabledChanged: (value) => setState(() => _enabled = value),
           ),
           const SizedBox(height: 24),
+          FilledButton(
+            key: const Key('source-editor-save'),
+            onPressed: _saving ? null : _save,
+            child: const Text('保存'),
+          ),
+          const SizedBox(height: 24),
           SearchBookEditor(
             key: ValueKey<int>(widget.source.id),
             value: _searchBookDraft,
             onChanged: (value) {
               setState(() => _searchBookDraft = value);
             },
-          ),
-          const SizedBox(height: 24),
-          FilledButton(
-            key: const Key('source-editor-save'),
-            onPressed: _saving ? null : _save,
-            child: const Text('保存'),
           ),
         ],
       ),
