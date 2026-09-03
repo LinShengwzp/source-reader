@@ -335,17 +335,25 @@ int _readSkipCount(Map<String, Object?>? moreKeys, List<String> warnings) {
     return 0;
   }
 
-  final value = switch (raw) {
-    int value => value,
-    num value when value.isFinite && value == value.roundToDouble() => value.toInt(),
-    String value => int.tryParse(value.trim()),
-    _ => null,
-  };
+  final value = _parseInteger(raw);
   if (value == null || value < 0) {
     warnings.add('moreKeys.skipCount 无效，已按 0 处理');
     return 0;
   }
   return value;
+}
+
+int? _parseInteger(Object raw) {
+  if (raw is int) {
+    return raw;
+  }
+  if (raw is num && raw.isFinite && raw == raw.roundToDouble()) {
+    return raw.toInt();
+  }
+  if (raw is String) {
+    return int.tryParse(raw.trim());
+  }
+  return null;
 }
 
 void _appendUnsupportedMoreKeysWarnings(
