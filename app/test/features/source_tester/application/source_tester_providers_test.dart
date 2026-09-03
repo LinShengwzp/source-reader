@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:source_reader/features/source_tester/application/search_book_request_builder.dart';
 import 'package:source_reader/features/source_tester/application/search_book_result_parser.dart';
-import 'package:source_reader/features/source_tester/application/source_request_builder.dart';
+import 'package:source_reader/features/source_tester/application/source_action_request_builder.dart';
 import 'package:source_reader/features/source_tester/application/source_response_decoder.dart';
 import 'package:source_reader/features/source_tester/application/source_rule_parser.dart';
 import 'package:source_reader/features/source_tester/application/source_tester_providers.dart';
@@ -13,10 +14,11 @@ import 'package:source_reader/features/sources/data/source_repository.dart';
 import 'package:source_reader/features/sources/domain/source_document.dart';
 
 void main() {
-  test('runner provider 使用现有 sourceRepositoryProvider 与全部 Tester 依赖 provider', () {
+  test('runner provider 使用现有 Repository 与拆分后的请求边界', () {
     final repository = _ProviderRepository();
     final executor = _ProviderExecutor();
-    final requestBuilder = SourceRequestBuilder();
+    final actionBuilder = const SourceActionRequestBuilder();
+    final searchBuilder = SearchBookRequestBuilder(actionBuilder: actionBuilder);
     final decoder = SourceResponseDecoder();
     final htmlParser = HtmlXPathRuleParser();
     final jsonParser = JsonRuleParser();
@@ -26,7 +28,8 @@ void main() {
       overrides: [
         sourceRepositoryProvider.overrideWithValue(repository),
         sourceHttpExecutorProvider.overrideWithValue(executor),
-        sourceRequestBuilderProvider.overrideWithValue(requestBuilder),
+        sourceActionRequestBuilderProvider.overrideWithValue(actionBuilder),
+        searchBookRequestBuilderProvider.overrideWithValue(searchBuilder),
         sourceResponseDecoderProvider.overrideWithValue(decoder),
         sourceHtmlParserProvider.overrideWithValue(htmlParser),
         sourceJsonParserProvider.overrideWithValue(jsonParser),
@@ -39,14 +42,14 @@ void main() {
 
     expect(runner.repository, same(repository));
     expect(runner.httpExecutor, same(executor));
-    expect(runner.requestBuilder, same(requestBuilder));
+    expect(runner.requestBuilder, same(searchBuilder));
     expect(runner.responseDecoder, same(decoder));
     expect(runner.htmlParser, same(htmlParser));
     expect(runner.jsonParser, same(jsonParser));
     expect(runner.resultParser, same(resultParser));
   });
 
-  test('默认 provider 暴露明确的 request/decoder/parser/result 边界', () {
+  test('默认 provider 暴露 action 与 Search 两层请求边界', () {
     final container = ProviderContainer(
       overrides: [
         sourceRepositoryProvider.overrideWithValue(_ProviderRepository()),
@@ -55,7 +58,14 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    expect(container.read(sourceRequestBuilderProvider), isA<SourceRequestBuilder>());
+    expect(
+      container.read(sourceActionRequestBuilderProvider),
+      isA<SourceActionRequestBuilder>(),
+    );
+    expect(
+      container.read(searchBookRequestBuilderProvider),
+      isA<SearchBookRequestBuilder>(),
+    );
     expect(container.read(sourceResponseDecoderProvider), isA<SourceResponseDecoder>());
     expect(container.read(sourceHtmlParserProvider), isA<SourceRuleParser>());
     expect(container.read(sourceJsonParserProvider), isA<SourceRuleParser>());
