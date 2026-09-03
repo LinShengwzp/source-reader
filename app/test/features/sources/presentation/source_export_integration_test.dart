@@ -125,16 +125,27 @@ void main() {
       '/saved-search',
     );
 
+    // 当前 viewport 仍在 searchBook 区域，先确认规则草稿未被导出动作重置。
+    expect(
+      tester.widget<TextField>(requestInfo).controller?.text,
+      '/unsaved-search',
+    );
+
+    // ListView 会懒构建不可见字段；滚回顶部后再确认基础草稿仍保留。
+    final editorList = find.descendant(
+      of: find.byKey(const Key('source-detail-pane')),
+      matching: find.byType(ListView),
+    );
+    expect(editorList, findsOneWidget);
+    await tester.drag(editorList, const Offset(0, 1200));
+    await tester.pumpAndSettle();
+
     expect(
       tester
           .widget<TextFormField>(find.byKey(const Key('source-editor-name')))
           .controller
           ?.text,
       '未保存新名称',
-    );
-    expect(
-      tester.widget<TextField>(requestInfo).controller?.text,
-      '/unsaved-search',
     );
 
     final stored = await repository.getSource(id);
