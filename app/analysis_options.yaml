@@ -8,6 +8,7 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    - web/**
   language:
     strict-casts: true
     strict-inference: true

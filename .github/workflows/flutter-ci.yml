@@ -11,6 +11,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      PUB_HOSTED_URL: https://pub.flutter-io.cn
     defaults:
       run:
         working-directory: app
@@ -56,3 +58,11 @@ jobs:
           fi
 
           exit "$test_status"
+
+      - name: Verify clean worktree
+        working-directory: .
+        shell: bash
+        run: |
+          git diff --check
+          git diff --exit-code
+          test -z "$(git status --porcelain)"
