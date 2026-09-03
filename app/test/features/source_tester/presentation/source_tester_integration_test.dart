@@ -38,7 +38,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         retry: (retryCount, error) => null,
-        overrides: <Override>[
+        overrides: [
           sourceRepositoryProvider.overrideWithValue(repository),
           sourceHttpExecutorProvider.overrideWithValue(httpExecutor),
         ],
