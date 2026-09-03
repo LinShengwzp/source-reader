@@ -219,18 +219,19 @@ SourceSearchBookDocument _searchBook({
   String? jsParser,
   Object? moreKeys,
 }) {
-  return SourceSearchBookDocument.fromRaw(<String, Object?>{
+  final raw = <String, Object?>{
     'actionID': 'searchBook',
     'parserID': 'DOM',
-    if (list != null) 'list': list,
-    if (bookName != null) 'bookName': bookName,
-    if (author != null) 'author': author,
-    if (cover != null) 'cover': cover,
-    if (desc != null) 'desc': desc,
-    if (detailUrl != null) 'detailUrl': detailUrl,
-    if (jsParser != null) 'JSParser': jsParser,
-    if (moreKeys != null) 'moreKeys': moreKeys,
-  });
+  };
+  if (list != null) raw['list'] = list;
+  if (bookName != null) raw['bookName'] = bookName;
+  if (author != null) raw['author'] = author;
+  if (cover != null) raw['cover'] = cover;
+  if (desc != null) raw['desc'] = desc;
+  if (detailUrl != null) raw['detailUrl'] = detailUrl;
+  if (jsParser != null) raw['JSParser'] = jsParser;
+  if (moreKeys != null) raw['moreKeys'] = moreKeys;
+  return SourceSearchBookDocument.fromRaw(raw);
 }
 
 Matcher _failure(SourceTestFailureReason reason) => isA<SourceTestException>().having(
