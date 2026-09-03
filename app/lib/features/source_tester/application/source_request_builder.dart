@@ -57,7 +57,7 @@ final class SourceRequestBuilder {
     }
 
     final encoding = _requestEncoding(searchBook.action.requestParamsEncode);
-    var resolvedRequestInfo = template
+    final resolvedRequestInfo = template
         .replaceAll('%@keyWord', _encodeParameter(input.keyWord, encoding))
         .replaceAll('%@filter', _encodeParameter(input.filter, encoding))
         .replaceAll('%@pageIndex', input.pageIndex.toString())
