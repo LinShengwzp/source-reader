@@ -42,7 +42,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: <Override>[
+        overrides: [
           sourceRepositoryProvider.overrideWithValue(repository),
         ],
         child: const MaterialApp(home: SourcePage()),
