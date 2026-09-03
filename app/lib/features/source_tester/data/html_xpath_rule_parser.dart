@@ -31,6 +31,7 @@ final class HtmlXPathRuleParser implements SourceRuleParser {
     if (trimmed.isEmpty) {
       throw const SourceRuleEvaluationException('XPath 表达式不能为空');
     }
+    _validateXPathStructure(trimmed);
 
     try {
       final result = HtmlXPath(context.node).query(trimmed);
@@ -67,6 +68,43 @@ final class _HtmlRuleContext implements SourceRuleContext {
 
   @override
   SourceRuleValue summarize() => SourceRuleScalar(node.text);
+}
+
+void _validateXPathStructure(String expression) {
+  final nesting = <String>[];
+  String? quote;
+
+  for (var index = 0; index < expression.length; index++) {
+    final char = expression[index];
+    if (quote != null) {
+      if (char == quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char == "'" || char == '"') {
+      quote = char;
+      continue;
+    }
+
+    if (char == '[' || char == '(') {
+      nesting.add(char);
+      continue;
+    }
+
+    if (char == ']' || char == ')') {
+      final expected = char == ']' ? '[' : '(';
+      if (nesting.isEmpty || nesting.last != expected) {
+        throw SourceRuleEvaluationException('XPath 结构不完整: $expression');
+      }
+      nesting.removeLast();
+    }
+  }
+
+  if (quote != null || nesting.isNotEmpty) {
+    throw SourceRuleEvaluationException('XPath 结构不完整: $expression');
+  }
 }
 
 SourceRuleValue _sourceValue(List<Object?> values) {
