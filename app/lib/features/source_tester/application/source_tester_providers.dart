@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:source_reader/features/source_tester/application/search_book_request_builder.dart';
 import 'package:source_reader/features/source_tester/application/search_book_result_parser.dart';
 import 'package:source_reader/features/source_tester/application/search_book_test_runner.dart';
-import 'package:source_reader/features/source_tester/application/source_request_builder.dart';
+import 'package:source_reader/features/source_tester/application/source_action_request_builder.dart';
 import 'package:source_reader/features/source_tester/application/source_response_decoder.dart';
 import 'package:source_reader/features/source_tester/application/source_rule_parser.dart';
 import 'package:source_reader/features/source_tester/data/html_xpath_rule_parser.dart';
@@ -17,8 +18,14 @@ final sourceHttpExecutorProvider = Provider<SourceHttpExecutor>((ref) {
   return executor;
 });
 
-final sourceRequestBuilderProvider = Provider<SourceRequestBuilder>((ref) {
-  return SourceRequestBuilder();
+final sourceActionRequestBuilderProvider = Provider<SourceActionRequestBuilder>((ref) {
+  return const SourceActionRequestBuilder();
+});
+
+final searchBookRequestBuilderProvider = Provider<SearchBookRequestBuilder>((ref) {
+  return SearchBookRequestBuilder(
+    actionBuilder: ref.watch(sourceActionRequestBuilderProvider),
+  );
 });
 
 final sourceResponseDecoderProvider = Provider<SourceResponseDecoder>((ref) {
@@ -41,7 +48,7 @@ final searchBookResultParserProvider = Provider<SearchBookResultParser>((ref) {
 final searchBookTestRunnerProvider = Provider<SearchBookTestRunner>((ref) {
   return SearchBookTestRunner(
     repository: ref.watch(sourceRepositoryProvider),
-    requestBuilder: ref.watch(sourceRequestBuilderProvider),
+    requestBuilder: ref.watch(searchBookRequestBuilderProvider),
     httpExecutor: ref.watch(sourceHttpExecutorProvider),
     responseDecoder: ref.watch(sourceResponseDecoderProvider),
     htmlParser: ref.watch(sourceHtmlParserProvider),
