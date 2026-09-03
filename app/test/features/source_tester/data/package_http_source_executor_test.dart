@@ -89,11 +89,17 @@ void main() {
       await expectLater(
         executor.execute(_request()),
         throwsA(
-          _failure(SourceTestFailureReason.transportFailure).having(
-            (error) => error.cause,
-            'cause',
-            isA<http.ClientException>(),
-          ),
+          isA<SourceTestException>()
+              .having(
+                (error) => error.reason,
+                'reason',
+                SourceTestFailureReason.transportFailure,
+              )
+              .having(
+                (error) => error.cause,
+                'cause',
+                isA<http.ClientException>(),
+              ),
         ),
       );
     });
@@ -183,12 +189,8 @@ final class _StreamedResponseWithUrl extends http.StreamedResponse
     super.stream,
     super.statusCode, {
     required this.url,
-    super.contentLength,
     super.request,
     super.headers,
-    super.isRedirect,
-    super.persistentConnection,
-    super.reasonPhrase,
   });
 
   @override
