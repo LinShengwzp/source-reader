@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:source_reader/features/source_tester/presentation/source_tester_page.dart';
 import 'package:source_reader/features/sources/application/source_controller.dart';
 import 'package:source_reader/features/sources/application/source_export.dart';
 import 'package:source_reader/features/sources/application/source_providers.dart';
@@ -44,6 +45,20 @@ final class SourcePage extends ConsumerWidget {
             tooltip: '导入书源',
             onPressed: () => _importSource(context, ref),
             icon: const Icon(Icons.file_upload_outlined),
+          ),
+          IconButton(
+            key: const Key('source-test-action'),
+            tooltip: '测试书源',
+            onPressed: selectedId == null
+                ? null
+                : () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => SourceTesterPage(sourceId: selectedId),
+                      ),
+                    );
+                  },
+            icon: const Icon(Icons.science_outlined),
           ),
           SourceExportMenu(
             canExportCurrent: selectedId != null,
