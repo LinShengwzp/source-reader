@@ -133,8 +133,7 @@ void main() {
       '未保存新名称',
     );
     expect(
-      tester.widget<TextFormField>(requestInfo).controller?.text ??
-          tester.widget<TextFormField>(requestInfo).initialValue,
+      tester.widget<TextField>(requestInfo).controller?.text,
       '/unsaved-search',
     );
 
