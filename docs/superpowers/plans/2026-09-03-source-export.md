@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 完成 Source Workbench v0.1 的导出闭环，支持把已保存的当前书源或全部 `StandarReader` 书源导出为 JSON / XBS，并通过系统保存对话框落盘。
+**Goal:** 完成 Source Workbench v0.1 导出闭环，支持把已保存的当前书源或全部 `StandarReader` 书源导出为 JSON / XBS，并通过系统保存对话框落盘。
 
-**Architecture:** `SourceExportService` 从 `SourceRepository` 重新读取持久化事实，复用现有 `encodeSourceJson()` 与 `encodeXbs()` 生成 `SourceExportPayload`。文件保存通过窄接口 `SourceFileSaver` 隔离，默认 adapter 使用 `file_picker 12.1.3` 的 `FilePicker.saveFile(fileName:, bytes:, mimeType:)`。`SourcePage` 只负责范围/格式交互、调用 service + saver、映射成功/取消/错误提示；未保存的 `SourceEditor` Draft 永远不进入导出链。
+**Architecture:** `SourceExportService` 只从 `SourceRepository` 读取持久化事实，复用 `encodeSourceJson()` 与 `encodeXbs()` 构建 `SourceExportPayload`。`SourceFileSaver` 隔离系统保存副作用，默认 adapter 使用 `file_picker 12.1.3` 的 `FilePicker.saveFile(fileName:, bytes:, mimeType:)`。`SourcePage` 只负责选择范围/格式、调用 service + saver、映射成功/取消/错误提示；`SourceEditor` 未保存 Draft 永远不进入导出链。
 
 **Tech Stack:** Flutter 3.47.x、Dart 3.13.x、Riverpod 3.4.2、Drift 2.34.x、file_picker 12.1.3、flutter_test。
 
@@ -12,40 +12,34 @@
 
 ## Global Constraints
 
-- 只有 Repository 中已经成功保存的状态可以导出。
-- “导出当前”必须按数据库 id 调用 `SourceRepository.getSource(id)`，不得使用 SourcePage 列表缓存替代。
-- “导出全部”只包含 `platform == 'StandarReader'` 的记录。
-- `StoredSource.platform` 是本地元数据，不得写入 raw JSON。
-- 单个书源导出仍固定使用 JSON 数组协议。
-- JSON 使用现有 `encodeSourceJson()`，UTF-8、无 BOM、不 pretty-print。
-- XBS 必须执行 `encodeSourceJson()` → UTF-8 bytes → `encodeXbs()`，不得维护第二套内容协议。
-- 当前书源默认文件名 `<sourceName>.json/.xbs`；全部固定 `source-reader-export.json/.xbs`。
-- 当前书源文件名中 `/ \\ : * ? " < > |` 与控制字符替换为 `_`，尾部空格和 `.` 去除，结果为空时回退 `source`。
-- JSON MIME 为 `application/json`；XBS MIME 为 `application/octet-stream`。
-- 用户取消格式对话框或系统保存对话框都属于正常流程，不显示失败。
-- `SourceController` 不新增导出职责。
-- `SourceEditor` 不新增导出 callback，不暴露 Draft。
-- 不实现 dirty-state tracking、多选导出、自动目录、分享、ZIP、非 `StandarReader` 导出或 Source Tester。
+- 当前导出必须调用 `SourceRepository.getSource(id)`，不得使用 SourcePage 列表缓存代替。
+- 全部导出只包含 `platform == 'StandarReader'`。
+- `StoredSource.platform` 不写入 raw JSON。
+- 单个书源仍输出 JSON 数组。
+- JSON 只使用现有 `encodeSourceJson()`，UTF-8、无 BOM、不 pretty-print。
+- XBS 固定为 `encodeSourceJson()` → UTF-8 bytes → `encodeXbs()`。
+- 当前文件名 `<sourceName>.json/.xbs`；全部固定 `source-reader-export.json/.xbs`。
+- 文件名 `/ \\ : * ? " < > |` 与控制字符替换为 `_`，尾部空格和 `.` 去除，空结果回退 `source`。
+- MIME：JSON=`application/json`；XBS=`application/octet-stream`。
+- 用户取消格式选择或系统保存都不是错误，不显示失败 Snackbar。
+- `SourceController` 不新增导出职责；`SourceEditor` 不新增导出 callback，不暴露 Draft。
+- 不实现 dirty tracking、多选、自动目录、分享、ZIP、非 `StandarReader` 导出、Source Tester 或 Reader。
 - 新增/修改业务注释优先中文。
-- 每个任务严格 RED → 验证失败原因 → GREEN → focused test → `flutter analyze` → 相关回归 → commit。
+- 每个任务严格 RED → 验证预期失败 → GREEN → focused tests → analyze → 回归 → commit。
 
----
-
-## File Structure
-
-本轮最终目标文件如下：
+## File Map
 
 ```text
 app/lib/features/sources/
 ├─ application/
-│  ├─ source_export.dart                 # 导出格式、范围、payload、结构化错误、导出 service、文件名清理
-│  ├─ source_file_saver.dart             # 文件保存窄接口
-│  └─ source_providers.dart              # 增加 export service / saver provider
+│  ├─ source_export.dart
+│  ├─ source_file_saver.dart
+│  └─ source_providers.dart
 ├─ data/
-│  └─ file_picker_source_file_saver.dart # file_picker 保存 adapter
+│  └─ file_picker_source_file_saver.dart
 └─ presentation/
-   ├─ source_export_menu.dart            # 纯范围 + 格式选择 UI
-   └─ source_page.dart                   # 调用 export service + saver，映射提示
+   ├─ source_export_menu.dart
+   └─ source_page.dart
 
 app/test/features/sources/
 ├─ application/
@@ -60,25 +54,15 @@ docs/omniroute/
 └─ OR-006-source-export-menu.md
 ```
 
-职责约束：
-
-- `source_export.dart` 不依赖 Flutter Widget、Riverpod、file_picker、SQLite 实现。
-- `source_file_saver.dart` 只依赖 `SourceExportPayload`。
-- `file_picker_source_file_saver.dart` 不知道 Repository、scope、format 或 Snackbar。
-- `source_export_menu.dart` 不读 Riverpod，不读 Repository，不直接保存文件。
-- `source_page.dart` 不编码 JSON/XBS，不读 Editor Draft。
-
 ---
 
-### Task 1: `SourceExportService` 与结构化导出模型（强模型）
+### Task 1: `SourceExportService` 与导出模型（强模型）
 
 **Files:**
 - Create: `app/lib/features/sources/application/source_export.dart`
 - Create: `app/test/features/sources/application/source_export_test.dart`
 
-**Interfaces:**
-
-- Consumes:
+**Consumes:**
 
 ```dart
 Future<List<StoredSource>> SourceRepository.listSources();
@@ -87,7 +71,7 @@ String encodeSourceJson(Iterable<SourceDocument> sources);
 Uint8List encodeXbs(Uint8List sourceBytes);
 ```
 
-- Produces:
+**Produces:**
 
 ```dart
 enum SourceExportFormat { json, xbs }
@@ -101,7 +85,6 @@ enum SourceExportFailureReason {
 
 final class SourceExportException implements Exception {
   const SourceExportException(this.reason, {this.cause});
-
   final SourceExportFailureReason reason;
   final Object? cause;
 }
@@ -113,7 +96,6 @@ final class SourceExportPayload {
     required this.mimeType,
     required this.exportedCount,
   });
-
   final String fileName;
   final Uint8List bytes;
   final String mimeType;
@@ -124,23 +106,69 @@ String sanitizeSourceFileBaseName(String input);
 
 final class SourceExportService {
   SourceExportService(this._repository);
-
   Future<SourceExportPayload> buildCurrent({
     required int id,
     required SourceExportFormat format,
   });
-
   Future<SourceExportPayload> buildAll({
     required SourceExportFormat format,
   });
 }
 ```
 
-- [ ] **Step 1: Write RED tests for current JSON export and persisted read semantics**
+- [ ] **Step 1: Write the RED test file with an explicit fake Repository**
 
-Create `source_export_test.dart` with a focused fake Repository that records `getSource` and `listSources` calls.
+Use a fake whose current-read and list-read data are independent, so tests can prove `buildCurrent` really calls `getSource`:
 
-Representative test:
+```dart
+final class _FakeSourceRepository implements SourceRepository {
+  _FakeSourceRepository({
+    Map<int, StoredSource>? getById,
+    List<StoredSource>? listed,
+  })  : getById = getById ?? <int, StoredSource>{},
+        listed = listed ?? <StoredSource>[];
+
+  final Map<int, StoredSource> getById;
+  final List<StoredSource> listed;
+  final List<int> getCalls = <int>[];
+  int listCalls = 0;
+
+  @override
+  Future<StoredSource?> getSource(int id) async {
+    getCalls.add(id);
+    return getById[id];
+  }
+
+  @override
+  Future<List<StoredSource>> listSources() async {
+    listCalls += 1;
+    return List<StoredSource>.of(listed);
+  }
+
+  @override
+  Future<int> insertSource({
+    required String platform,
+    required SourceDocument document,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<List<int>> insertSources({
+    required String platform,
+    required List<SourceDocument> documents,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> updateSource(int id, SourceDocument document) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> deleteSource(int id) => throw UnimplementedError();
+}
+```
+
+Add a helper that creates `StoredSource` from raw JSON and an explicit platform.
+
+- [ ] **Step 2: Add RED tests for current export and JSON array semantics**
 
 ```dart
 test('buildCurrent 重新按 id 读取 Repository 并输出单元素 JSON 数组', () async {
@@ -154,10 +182,16 @@ test('buildCurrent 重新按 id 读取 Repository 并输出单元素 JSON 数组
   );
   final repository = _FakeSourceRepository(
     getById: <int, StoredSource>{7: stored},
+    listed: <StoredSource>[
+      _storedSource(
+        id: 7,
+        platform: 'StandarReader',
+        raw: <String, Object?>{'sourceName': '列表旧值'},
+      ),
+    ],
   );
-  final service = SourceExportService(repository);
 
-  final payload = await service.buildCurrent(
+  final payload = await SourceExportService(repository).buildCurrent(
     id: 7,
     format: SourceExportFormat.json,
   );
@@ -168,8 +202,11 @@ test('buildCurrent 重新按 id 读取 Repository 并输出单元素 JSON 数组
   expect(payload.mimeType, 'application/json');
   expect(payload.exportedCount, 1);
 
+  final raw = jsonDecode(utf8.decode(payload.bytes));
+  expect(raw, isA<List<Object?>>());
+  expect(raw, hasLength(1));
+
   final decoded = decodeSourceJson(utf8.decode(payload.bytes));
-  expect(decoded, hasLength(1));
   expect(decoded.single.sourceName, '测试书源');
   expect(
     decoded.single.toRaw()['futureTop'],
@@ -178,39 +215,44 @@ test('buildCurrent 重新按 id 读取 Repository 并输出单元素 JSON 数组
 });
 ```
 
-Also assert the decoded top level is an array by checking:
+- [ ] **Step 3: Add RED tests for structured failures**
+
+Use `await expectLater` because the service methods fail asynchronously:
 
 ```dart
-final raw = jsonDecode(utf8.decode(payload.bytes));
-expect(raw, isA<List<Object?>>());
-expect(raw, hasLength(1));
+await expectLater(
+  service.buildCurrent(id: 404, format: SourceExportFormat.json),
+  throwsA(
+    isA<SourceExportException>().having(
+      (error) => error.reason,
+      'reason',
+      SourceExportFailureReason.notFound,
+    ),
+  ),
+);
 ```
 
-- [ ] **Step 2: Add RED tests for errors, filtering, XBS and filenames**
-
-Add exact behavior tests:
+Add the same pattern for:
 
 ```text
-1. current id missing -> SourceExportFailureReason.notFound
-2. current platform != StandarReader -> unsupportedPlatform
-3. buildAll(json) filters out non-StandarReader and preserves order
-4. buildAll with no StandarReader -> empty
-5. JSON round-trip preserves unknown raw
-6. XBS round-trip through decodeXbs + utf8 + decodeSourceJson preserves raw
-7. exportedCount equals exported document count
-8. current name `A/B:C*D?E"F<G>H|I` -> `A_B_C_D_E_F_G_H_I.json`
-9. trailing spaces/dots are removed before extension
-10. only invalid/trailing characters becoming empty -> `source.json`
-11. all JSON filename is source-reader-export.json
-12. all XBS filename is source-reader-export.xbs
-13. invalid JSON-encodable raw value wraps as encodingFailed
+current platform != StandarReader -> unsupportedPlatform
+buildAll after platform filtering is empty -> empty
 ```
 
-For the encoding failure test, use a persisted-looking `SourceDocument` whose unknown raw field contains `DateTime.utc(2026, 9, 3)`; `jsonEncode` must fail and the service must surface:
+For `encodingFailed`, configure `getById[1]` with:
 
 ```dart
-expect(
-  () => service.buildCurrent(id: 1, format: SourceExportFormat.json),
+SourceDocument.fromRaw(<String, Object?>{
+  'sourceName': '无法编码',
+  'futureValue': DateTime.utc(2026, 9, 3),
+})
+```
+
+Then assert:
+
+```dart
+await expectLater(
+  service.buildCurrent(id: 1, format: SourceExportFormat.json),
   throwsA(
     isA<SourceExportException>().having(
       (error) => error.reason,
@@ -221,19 +263,51 @@ expect(
 );
 ```
 
-- [ ] **Step 3: Verify RED**
+Repository read errors are a separate concern and must not be wrapped as `encodingFailed`.
 
-Run from `app/`:
+- [ ] **Step 4: Add RED tests for all-export filtering and XBS round-trip**
+
+Configure list order `StandarReader A`, `OtherReader B`, `StandarReader C`. Assert decoded JSON names are exactly `A, C`, count is 2, and A/C unknown raw fields survive.
+
+For XBS:
+
+```dart
+final payload = await service.buildAll(format: SourceExportFormat.xbs);
+expect(payload.fileName, 'source-reader-export.xbs');
+expect(payload.mimeType, 'application/octet-stream');
+
+final plainBytes = decodeXbs(payload.bytes);
+final decoded = decodeSourceJson(utf8.decode(plainBytes));
+expect(decoded.map((item) => item.sourceName).toList(), <String?>['A', 'C']);
+```
+
+- [ ] **Step 5: Add RED filename tests**
+
+Directly test the pure sanitizer:
+
+```dart
+expect(
+  sanitizeSourceFileBaseName('A/B:C*D?E"F<G>H|I'),
+  'A_B_C_D_E_F_G_H_I',
+);
+expect(sanitizeSourceFileBaseName('name...   '), 'name');
+expect(sanitizeSourceFileBaseName('...   '), 'source');
+expect(sanitizeSourceFileBaseName('\u0001\u0002'), '__');
+```
+
+Also verify current `.xbs` extension and all fixed `.json/.xbs` names through service payloads.
+
+- [ ] **Step 6: Verify RED**
 
 ```bash
 flutter test test/features/sources/application/source_export_test.dart
 ```
 
-Expected: FAIL because `source_export.dart` and its public types do not exist. There must be no unrelated existing-test failure.
+Expected: FAIL only because `source_export.dart` and its public symbols do not exist.
 
-- [ ] **Step 4: Implement the minimal export model and service**
+- [ ] **Step 7: Implement minimal production code**
 
-`source_export.dart` should follow this structure:
+Use this exact structure:
 
 ```dart
 import 'dart:convert';
@@ -246,9 +320,7 @@ import 'package:source_reader/features/sources/data/source_repository.dart';
 const String _standarReaderPlatform = 'StandarReader';
 
 enum SourceExportFormat { json, xbs }
-
 enum SourceExportScope { current, all }
-
 enum SourceExportFailureReason {
   notFound,
   unsupportedPlatform,
@@ -258,7 +330,6 @@ enum SourceExportFailureReason {
 
 final class SourceExportException implements Exception {
   const SourceExportException(this.reason, {this.cause});
-
   final SourceExportFailureReason reason;
   final Object? cause;
 
@@ -275,7 +346,6 @@ final class SourceExportPayload {
     required this.mimeType,
     required this.exportedCount,
   });
-
   final String fileName;
   final Uint8List bytes;
   final String mimeType;
@@ -290,14 +360,9 @@ String sanitizeSourceFileBaseName(String input) {
   final withoutTrailing = replaced.replaceFirst(RegExp(r'[ .]+$'), '');
   return withoutTrailing.isEmpty ? 'source' : withoutTrailing;
 }
-```
 
-`SourceExportService` implementation rules:
-
-```dart
 final class SourceExportService {
   SourceExportService(this._repository);
-
   final SourceRepository _repository;
 
   Future<SourceExportPayload> buildCurrent({
@@ -313,14 +378,10 @@ final class SourceExportService {
         SourceExportFailureReason.unsupportedPlatform,
       );
     }
-
-    final baseName = sanitizeSourceFileBaseName(
-      source.document.sourceName ?? '',
-    );
     return _buildPayload(
       sources: <StoredSource>[source],
       format: format,
-      baseName: baseName,
+      baseName: sanitizeSourceFileBaseName(source.document.sourceName ?? ''),
     );
   }
 
@@ -350,7 +411,6 @@ final class SourceExportService {
         sources.map((source) => source.document),
       );
       final jsonBytes = Uint8List.fromList(utf8.encode(jsonText));
-
       return switch (format) {
         SourceExportFormat.json => SourceExportPayload(
             fileName: '$baseName.json',
@@ -375,22 +435,13 @@ final class SourceExportService {
 }
 ```
 
-Do not catch Repository read errors as `encodingFailed`; only the encoding block may wrap errors.
-
-- [ ] **Step 5: Verify GREEN and regressions**
+- [ ] **Step 8: Verify GREEN and commit**
 
 ```bash
 flutter test test/features/sources/application/source_export_test.dart
 flutter test test/features/sources/codec/source_json_codec_test.dart
 flutter test test/features/sources/codec/xbs_codec_test.dart
 flutter analyze
-```
-
-Expected: all PASS / no analyzer issues.
-
-- [ ] **Step 6: Commit**
-
-```bash
 git add app/lib/features/sources/application/source_export.dart \
   app/test/features/sources/application/source_export_test.dart
 git commit -m "feat: add source export service"
@@ -398,7 +449,7 @@ git commit -m "feat: add source export service"
 
 ---
 
-### Task 2: File saver boundary、file_picker adapter 与 Providers（强模型）
+### Task 2: File saver boundary、adapter 与 Providers（强模型）
 
 **Files:**
 - Create: `app/lib/features/sources/application/source_file_saver.dart`
@@ -406,23 +457,10 @@ git commit -m "feat: add source export service"
 - Modify: `app/lib/features/sources/application/source_providers.dart`
 - Create: `app/test/features/sources/application/source_export_provider_test.dart`
 
-**Interfaces consumed:**
-
-```dart
-SourceExportService(SourceRepository repository)
-SourceExportPayload
-sourceRepositoryProvider
-```
-
-**Interfaces produced:**
+**Produces:**
 
 ```dart
 abstract interface class SourceFileSaver {
-  Future<bool> save(SourceExportPayload payload);
-}
-
-final class FilePickerSourceFileSaver implements SourceFileSaver {
-  @override
   Future<bool> save(SourceExportPayload payload);
 }
 
@@ -430,16 +468,14 @@ final sourceExportServiceProvider = Provider<SourceExportService>(...);
 final sourceFileSaverProvider = Provider<SourceFileSaver>(...);
 ```
 
-- [ ] **Step 1: Write RED provider wiring test**
+- [ ] **Step 1: Write RED provider tests**
 
-Create `source_export_provider_test.dart` proving the provider graph uses the overridden Repository and exposes the saver boundary.
+`source_export_provider_test.dart` must use a fake Repository and prove the export service provider consumes the overridden repository:
 
 ```dart
 test('sourceExportServiceProvider 使用 sourceRepositoryProvider', () async {
   final repository = _ProviderTestRepository(
-    <StoredSource>[
-      _storedSource(id: 1, name: 'Provider 书源'),
-    ],
+    <StoredSource>[_storedSource(id: 1, name: 'Provider 书源')],
   );
   final container = ProviderContainer(
     overrides: [
@@ -448,26 +484,24 @@ test('sourceExportServiceProvider 使用 sourceRepositoryProvider', () async {
   );
   addTearDown(container.dispose);
 
-  final service = container.read(sourceExportServiceProvider);
-  final payload = await service.buildAll(format: SourceExportFormat.json);
+  final payload = await container
+      .read(sourceExportServiceProvider)
+      .buildAll(format: SourceExportFormat.json);
 
   expect(repository.listCalls, 1);
   expect(payload.exportedCount, 1);
 });
 ```
 
-Also verify:
+Also compile/wire the saver without invoking a native dialog:
 
 ```dart
 test('sourceFileSaverProvider 默认提供 SourceFileSaver', () {
   final container = ProviderContainer();
   addTearDown(container.dispose);
-
   expect(container.read(sourceFileSaverProvider), isA<SourceFileSaver>());
 });
 ```
-
-The test must not call the real system save dialog.
 
 - [ ] **Step 2: Verify RED**
 
@@ -475,9 +509,9 @@ The test must not call the real system save dialog.
 flutter test test/features/sources/application/source_export_provider_test.dart
 ```
 
-Expected: FAIL because `SourceFileSaver`, `sourceExportServiceProvider`, and `sourceFileSaverProvider` do not exist.
+Expected: FAIL because the new saver/provider symbols do not exist.
 
-- [ ] **Step 3: Implement `SourceFileSaver` and the thin adapter**
+- [ ] **Step 3: Implement saver boundary and `file_picker` adapter**
 
 `source_file_saver.dart`:
 
@@ -496,7 +530,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:source_reader/features/sources/application/source_export.dart';
 import 'package:source_reader/features/sources/application/source_file_saver.dart';
 
-/// 使用系统原生保存对话框保存已经编码完成的书源 payload。
+/// 使用系统保存对话框保存已完成编码的书源 payload。
 final class FilePickerSourceFileSaver implements SourceFileSaver {
   @override
   Future<bool> save(SourceExportPayload payload) async {
@@ -510,39 +544,30 @@ final class FilePickerSourceFileSaver implements SourceFileSaver {
 }
 ```
 
-`file_picker 12.1.3` 的该 API 返回 `Future<Uri?>`；`null` 代表用户取消。
+For file_picker 12.1.3, `saveFile` returns `Future<Uri?>`; `null` means user cancellation.
 
 - [ ] **Step 4: Wire providers**
 
-Extend `source_providers.dart` with imports for `source_export.dart`, `source_file_saver.dart`, and `file_picker_source_file_saver.dart`, then add:
+Add to `source_providers.dart`:
 
 ```dart
-/// 只从 Repository 读取已保存书源并构建导出 payload。
 final sourceExportServiceProvider = Provider<SourceExportService>((ref) {
   return SourceExportService(ref.watch(sourceRepositoryProvider));
 });
 
-/// 系统文件保存边界；Presentation 不直接依赖 file_picker。
 final sourceFileSaverProvider = Provider<SourceFileSaver>((ref) {
   return FilePickerSourceFileSaver();
 });
 ```
 
-Do not add export methods to `SourceController`.
+Do not touch `SourceController`.
 
-- [ ] **Step 5: Verify GREEN**
+- [ ] **Step 5: Verify GREEN and commit**
 
 ```bash
 flutter test test/features/sources/application/source_export_provider_test.dart
 flutter test test/features/sources/application/source_export_test.dart
 flutter analyze
-```
-
-Expected: PASS.
-
-- [ ] **Step 6: Commit**
-
-```bash
 git add app/lib/features/sources/application/source_file_saver.dart \
   app/lib/features/sources/data/file_picker_source_file_saver.dart \
   app/lib/features/sources/application/source_providers.dart \
@@ -554,23 +579,23 @@ git commit -m "feat: add source export file saver"
 
 ### Task 3: OR-006 pure export menu + format dialog（OmniRoute）
 
-**Strong-model work order file:**
+**Strong-model work order:**
 - Create: `docs/omniroute/OR-006-source-export-menu.md`
 
 **OmniRoute allowed files only:**
 - Create: `app/lib/features/sources/presentation/source_export_menu.dart`
 - Create: `app/test/features/sources/presentation/source_export_menu_test.dart`
 
-**Forbidden:** SourcePage, SourceEditor, Controller, Provider, Repository, Database, codec, source_export.dart, source_file_saver.dart, data adapters, pubspec.
+**Forbidden:** SourcePage, SourceEditor, Controller, Providers, Repository, Database, codec, `source_export.dart`, saver boundary/adapter, pubspec.
 
-**Interfaces consumed:**
+**Consumes:**
 
 ```dart
 enum SourceExportFormat { json, xbs }
 enum SourceExportScope { current, all }
 ```
 
-**Interface produced:**
+**Produces:**
 
 ```dart
 typedef SourceExportSelectionCallback = Future<void> Function(
@@ -584,7 +609,6 @@ final class SourceExportMenu extends StatelessWidget {
     required this.canExportCurrent,
     required this.onExport,
   });
-
   final bool canExportCurrent;
   final SourceExportSelectionCallback onExport;
 }
@@ -604,65 +628,56 @@ source-export-format-cancel
 
 - [ ] **Step 1: Strong model writes and commits OR-006**
 
-The work order must require all of the following:
+The work order must explicitly require:
 
-- `SourceExportMenu` is pure presentation and never reads Riverpod.
-- The first menu contains exactly the semantic actions “导出当前” and “导出全部”.
-- `canExportCurrent == false` leaves “导出当前” visible but disabled.
-- Selecting either enabled scope opens a small format dialog with JSON / XBS / 取消.
-- Canceling the format dialog does not call `onExport`.
-- Selecting JSON calls `onExport(scope, SourceExportFormat.json)` exactly once.
-- Selecting XBS calls `onExport(scope, SourceExportFormat.xbs)` exactly once.
-- No persistent format state, no default format auto-selection, no file saving, no Snackbar.
-- Widget tests assert behavior and stable keys, not exact PopupMenu/Dialog implementation class beyond what interaction needs.
+```text
+A. current remains visible but disabled when canExportCurrent=false
+B. all remains enabled
+C. choosing current/all opens JSON/XBS/取消 dialog
+D. JSON callback is exact scope + SourceExportFormat.json once
+E. XBS callback is exact scope + SourceExportFormat.xbs once
+F. cancel does not call callback
+G. no Riverpod, Repository, saver, Snackbar, persistent state or default auto-selection
+H. tests use stable keys and behavior, not container styling
+```
 
-Docs commit:
+Commit the work order:
 
 ```bash
 git add docs/omniroute/OR-006-source-export-menu.md
 git commit -m "docs: add source export menu task"
 ```
 
-- [ ] **Step 2: OmniRoute writes RED widget tests**
+- [ ] **Step 2: OmniRoute executes strict RED → GREEN**
 
-Required tests:
+Required widget tests:
 
 ```text
-A. canExportCurrent=false -> current visible and disabled; all enabled
-B. canExportCurrent=true -> current enabled
-C. current -> JSON calls onExport(current, json) once
-D. current -> XBS calls onExport(current, xbs) once
-E. all -> JSON calls onExport(all, json) once
-F. cancel format dialog -> callback not called
+A. current disabled / all enabled
+B. current enabled
+C. current + JSON callback
+D. current + XBS callback
+E. all + JSON callback
+F. dialog cancel is silent
 ```
 
-- [ ] **Step 3: OmniRoute verifies RED**
+RED command:
 
 ```bash
 flutter test test/features/sources/presentation/source_export_menu_test.dart
 ```
 
-Expected: FAIL because `source_export_menu.dart` does not exist.
+Expected RED: editor file missing / symbols undefined, no unrelated failure.
 
-- [ ] **Step 4: OmniRoute implements minimal pure widget**
-
-Implementation may use `PopupMenuButton<SourceExportScope>` + `showDialog<SourceExportFormat>`, but must preserve the public interface and keys above.
-
-The format dialog should return only these values:
-
-```dart
-SourceExportFormat.json
-SourceExportFormat.xbs
-null
-```
-
-Only after a non-null format is returned may it call:
+Minimal implementation may use `PopupMenuButton<SourceExportScope>` and `showDialog<SourceExportFormat>`. Only call:
 
 ```dart
 await onExport(scope, format);
 ```
 
-- [ ] **Step 5: OmniRoute verifies and self-commits**
+when returned `format != null`.
+
+- [ ] **Step 3: OmniRoute verifies, commits, pushes, returns SHA**
 
 ```bash
 flutter test test/features/sources/presentation/source_export_menu_test.dart
@@ -670,62 +685,37 @@ flutter analyze
 flutter test
 git diff --check
 git status --short
-```
-
-All commands must be GREEN. Then:
-
-```bash
 git add app/lib/features/sources/presentation/source_export_menu.dart \
   app/test/features/sources/presentation/source_export_menu_test.dart
 git commit -m "feat: add source export menu"
 git push origin revival/flutter-workbench
 ```
 
-Return the full commit SHA and test summary for strong-model review.
+Strong model must review actual diff + CI before Task 4.
 
 ---
 
-### Task 4: Integrate export flow into `SourcePage`（强模型）
+### Task 4: Integrate export into `SourcePage`（强模型）
 
 **Files:**
 - Modify: `app/lib/features/sources/presentation/source_page.dart`
 - Modify: `app/test/features/sources/presentation/source_page_test.dart`
 
-**Interfaces consumed:**
+- [ ] **Step 1: Upgrade SourcePage test fakes to support current-read races**
+
+`TestSourceRepository` must let `getSource` be independently configured from `listSources`:
 
 ```dart
-SourceExportMenu(
-  canExportCurrent: bool,
-  onExport: Future<void> Function(SourceExportScope, SourceExportFormat),
-)
-
-sourceExportServiceProvider
-sourceFileSaverProvider
-SourceExportException
-SourceExportFailureReason
-```
-
-**Public behavior produced:**
-
-```text
-AppBar export menu
-  -> choose current/all
-  -> choose JSON/XBS
-  -> build payload from saved Repository state
-  -> save payload
-  -> success / silent cancel / mapped error Snackbar
-```
-
-- [ ] **Step 1: Extend the SourcePage test fakes before adding behavior tests**
-
-Modify `TestSourceRepository` so `getSource(id)` can return from configured `items` and records calls:
-
-```dart
+final Future<StoredSource?> Function(int id)? onGetSource;
 final List<int> getCalls = <int>[];
 
 @override
 Future<StoredSource?> getSource(int id) async {
   getCalls.add(id);
+  final handler = onGetSource;
+  if (handler != null) {
+    return handler(id);
+  }
   final currentItems = items;
   if (currentItems == null) {
     return null;
@@ -739,12 +729,13 @@ Future<StoredSource?> getSource(int id) async {
 }
 ```
 
-Add a fake saver:
+Update constructors to accept `onGetSource`. Update `_storedSource` helper to accept optional `platform`, defaulting to `StandarReader`.
+
+Add saver fake:
 
 ```dart
 final class FakeSourceFileSaver implements SourceFileSaver {
   FakeSourceFileSaver({this.result = true, this.error});
-
   final bool result;
   final Object? error;
   final List<SourceExportPayload> payloads = <SourceExportPayload>[];
@@ -761,26 +752,32 @@ final class FakeSourceFileSaver implements SourceFileSaver {
 }
 ```
 
-Extend `_pumpPage` with optional `SourceFileSaver? saver` and override `sourceFileSaverProvider` with the fake. Keep existing import tests working unchanged.
+Extend `_pumpPage` with `SourceFileSaver? saver` and override `sourceFileSaverProvider` with a fake default; existing import tests must remain unchanged.
 
-- [ ] **Step 2: Write RED SourcePage export tests**
+- [ ] **Step 2: Write RED export behavior tests**
 
-Add tests for:
+Drive UI only through Task 3 stable keys. Add exact tests:
 
 ```text
-1. AppBar shows export menu.
-2. No selection -> current action visible disabled; all action available.
-3. Selected id -> current JSON export calls repository.getSource(selectedId), saver once, success says `已导出 1 个书源`.
-4. All XBS export calls listSources through service, saver receives .xbs and correct count.
-5. Saver returns false -> no success and no failure Snackbar.
-6. buildAll with no StandarReader -> `没有可导出的书源`.
-7. selected id disappeared before export -> `当前书源已不存在`.
-8. selected record platform unsupported -> `当前书源平台暂不支持导出`.
-9. encoding failure -> `导出编码失败`.
-10. saver throws StateError('disk failed') -> text contains `导出失败：Bad state: disk failed`.
+1. AppBar shows source-export-menu.
+2. no selection -> source-export-current disabled, source-export-all enabled.
+3. select id=2 -> current JSON -> getCalls == [2], saver one payload, `.json`, count 1, Snackbar `已导出 1 个书源`.
+4. all XBS -> saver payload `.xbs`, MIME application/octet-stream, exportedCount equals StandarReader count.
+5. saver result=false -> no `已导出` and no `导出失败` Snackbar.
+6. empty StandarReader set -> `没有可导出的书源`.
+7. list still contains selected id but onGetSource returns null -> `当前书源已不存在`.
+8. selected item platform OtherReader -> `当前书源平台暂不支持导出`.
+9. selected item has DateTime unknown raw -> `导出编码失败`.
+10. saver throws StateError('disk failed') -> contains `导出失败：Bad state: disk failed`.
 ```
 
-Use only the stable menu/dialog keys from Task 3 to drive interactions.
+For test 7, keep the item in `items` so selection is valid, but configure:
+
+```dart
+onGetSource: (id) async => null,
+```
+
+This is the exact race the service contract must handle.
 
 - [ ] **Step 3: Verify RED**
 
@@ -788,11 +785,11 @@ Use only the stable menu/dialog keys from Task 3 to drive interactions.
 flutter test test/features/sources/presentation/source_page_test.dart
 ```
 
-Expected: existing tests PASS; new export tests FAIL because SourcePage does not mount `SourceExportMenu` or invoke export providers.
+Expected: existing tests pass; new export tests fail because SourcePage does not mount/use export flow.
 
-- [ ] **Step 4: Mount `SourceExportMenu` in the AppBar**
+- [ ] **Step 4: Mount the pure export menu**
 
-In `SourcePage.build`, add the menu to `appBar.actions` without removing import or reload:
+Add to `AppBar.actions` without removing import/reload:
 
 ```dart
 SourceExportMenu(
@@ -807,11 +804,9 @@ SourceExportMenu(
 ),
 ```
 
-Do not pass `StoredSource` or any Editor state into this callback.
+Do not pass `StoredSource`, controllers, Drafts or Editor callbacks.
 
-- [ ] **Step 5: Implement the export orchestration in SourcePage**
-
-Add a private method with this control flow:
+- [ ] **Step 5: Add export orchestration and structured error mapping**
 
 ```dart
 Future<void> _exportSource(
@@ -831,7 +826,6 @@ Future<void> _exportSource(
         ),
       SourceExportScope.all => await service.buildAll(format: format),
     };
-
     final saved = await ref.read(sourceFileSaverProvider).save(payload);
     if (!saved || !messenger.mounted) {
       return;
@@ -855,11 +849,7 @@ Future<void> _exportSource(
     );
   }
 }
-```
 
-Map structured failures with an exhaustive switch:
-
-```dart
 String _exportErrorMessage(SourceExportFailureReason reason) {
   return switch (reason) {
     SourceExportFailureReason.notFound => '当前书源已不存在',
@@ -870,22 +860,13 @@ String _exportErrorMessage(SourceExportFailureReason reason) {
 }
 ```
 
-`selectedId!` is valid only because Task 3 keeps current disabled when null. Do not invent fallback id values.
-
-- [ ] **Step 6: Verify GREEN and existing page behavior**
+- [ ] **Step 6: Verify GREEN and commit**
 
 ```bash
 flutter test test/features/sources/presentation/source_page_test.dart
 flutter test test/features/sources/presentation/source_export_menu_test.dart
 flutter test test/features/sources/presentation/source_editor_test.dart
 flutter analyze
-```
-
-Expected: PASS.
-
-- [ ] **Step 7: Commit**
-
-```bash
 git add app/lib/features/sources/presentation/source_page.dart \
   app/test/features/sources/presentation/source_page_test.dart
 git commit -m "feat: integrate source export flow"
@@ -898,11 +879,7 @@ git commit -m "feat: integrate source export flow"
 **Files:**
 - Create: `app/test/features/sources/presentation/source_export_integration_test.dart`
 
-**Consumes:** real `AppDatabase(NativeDatabase.memory())`, `SqliteSourceRepository`, real `SourceExportService`, real `SourcePage`, fake `SourceFileSaver` only for capturing system-save output.
-
-- [ ] **Step 1: Write real SQLite regression for all-export platform filtering**
-
-Setup:
+- [ ] **Step 1: Write real SQLite all-export filtering regression**
 
 ```dart
 final database = AppDatabase(NativeDatabase.memory());
@@ -926,16 +903,11 @@ await repository.insertSource(
     'otherOnly': true,
   }),
 );
-```
 
-Assertion:
-
-```dart
 final payload = await SourceExportService(repository).buildAll(
   format: SourceExportFormat.json,
 );
 final decoded = decodeSourceJson(utf8.decode(payload.bytes));
-
 expect(decoded, hasLength(1));
 expect(decoded.single.sourceName, 'A');
 expect(
@@ -945,9 +917,9 @@ expect(
 expect(payload.exportedCount, 1);
 ```
 
-- [ ] **Step 2: Write real SourcePage regression proving unsaved Draft is excluded**
+- [ ] **Step 2: Write real SourcePage regression proving unsaved Draft exclusion**
 
-Insert one real `StandarReader` record with saved values:
+Insert saved state:
 
 ```dart
 final id = await repository.insertSource(
@@ -966,28 +938,31 @@ final id = await repository.insertSource(
 );
 ```
 
-Pump a 1200x800 real `SourcePage` with only these overrides:
+Pump 1200x800 real `SourcePage` with:
 
 ```dart
-sourceRepositoryProvider.overrideWithValue(repository)
-sourceFileSaverProvider.overrideWithValue(capturingSaver)
+sourceRepositoryProvider.overrideWithValue(repository),
+sourceFileSaverProvider.overrideWithValue(capturingSaver),
 ```
 
 Then:
 
 ```text
-1. select source id
-2. edit source-editor-name to `未保存新名称`
-3. edit search-book-request-info to `/unsaved-search`
-4. DO NOT tap source-editor-save
-5. open source-export-menu
-6. choose source-export-current
-7. choose source-export-format-json
+select source-list-tile-$id
+edit source-editor-name -> 未保存新名称
+edit search-book-request-info -> /unsaved-search
+DO NOT tap source-editor-save
+open source-export-menu
+choose source-export-current
+choose source-export-format-json
 ```
 
-Decode `capturingSaver.payloads.single.bytes` and assert:
+Decode captured payload and assert persisted values:
 
 ```dart
+final decoded = decodeSourceJson(
+  utf8.decode(capturingSaver.payloads.single.bytes),
+);
 expect(decoded.single.sourceName, '数据库旧名称');
 expect(
   decoded.single.searchBook?.action.requestInfo,
@@ -995,17 +970,17 @@ expect(
 );
 ```
 
-Also assert the mounted Editor still visibly contains the unsaved values after export. This proves export neither saves nor resets the Draft.
+Also assert the mounted Editor still shows `未保存新名称` and `/unsaved-search` after export. Export must neither save nor reset the Draft.
 
-- [ ] **Step 3: Run focused integration tests**
+- [ ] **Step 3: Focused integration verification**
 
 ```bash
 flutter test test/features/sources/presentation/source_export_integration_test.dart
 ```
 
-Expected: PASS after Tasks 1-4. If it fails, use `superpowers:systematic-debugging`; do not weaken the persisted-vs-draft assertions.
+Expected: PASS. On failure, invoke `superpowers:systematic-debugging`; do not weaken persisted-vs-draft assertions.
 
-- [ ] **Step 4: Run final acceptance suite**
+- [ ] **Step 4: Final acceptance suite**
 
 From `app/`:
 
@@ -1022,7 +997,7 @@ flutter test
 git diff --check
 ```
 
-Expected: every command GREEN; full suite has zero failures; analyzer has no issues; diff check has no output.
+Expected: every command exits 0; analyzer reports no issues; full suite has zero failures; `git diff --check` has no output.
 
 - [ ] **Step 5: Commit integration regression**
 
@@ -1035,32 +1010,29 @@ git commit -m "test: cover source export sqlite flow"
 
 ## Completion Review
 
-Before declaring Source Export complete, verify each item against the spec:
+Before declaring completion, verify all of these against the spec:
 
-- `SourceExportService` exists outside `SourceController`.
-- current export calls `getSource(id)` and never consumes a `StoredSource` passed from Presentation.
-- all export filters exactly `platform == 'StandarReader'`.
-- platform is absent from exported raw JSON unless it originally existed as a raw field for unrelated reasons.
-- single export still decodes from a JSON array.
-- JSON uses UTF-8 without BOM and no separate pretty encoder.
-- XBS decrypts to the same JSON array semantics.
-- unknown top-level and nested raw fields survive export round-trip.
-- current filename sanitizer handles forbidden/control/trailing characters and empty fallback.
-- all filenames are exactly `source-reader-export.json` / `.xbs`.
-- MIME values are exact.
+- `SourceExportService` is outside `SourceController`.
+- current export reads `getSource(id)` and never accepts a Presentation `StoredSource` as truth.
+- all export filters exactly `StandarReader`.
+- platform metadata is not injected into raw JSON.
+- single export is still a JSON array.
+- JSON and XBS round-trip preserve unknown raw fields.
+- JSON UTF-8/no BOM/compact behavior remains from existing codec.
+- XBS decrypts to the same JSON-array semantics.
+- current and all filenames/MIME values are exact.
+- sanitizer covers forbidden/control/trailing/empty cases.
 - empty all-export generates no payload.
-- `FilePickerSourceFileSaver` returns false on `FilePicker.saveFile(...) == null`.
-- format-dialog cancel and saver cancel are silent.
-- structured export failures map to the approved Chinese UI messages.
-- arbitrary saver exceptions map to `导出失败：<error>`.
-- SourcePage has one export entry with current/all → JSON/XBS flow.
-- SourceEditor API is unchanged and no Draft is exposed.
-- real SQLite regression proves unsaved Editor changes are not exported.
-- no dirty-state tracking, Reader, Source Tester, multi-select, share or non-StandarReader export was added.
+- native saver returns false on canceled `saveFile`.
+- format cancel and saver cancel are silent.
+- structured business failures map to approved Chinese messages.
+- arbitrary saver failures map to `导出失败：<error>`.
+- SourcePage has one current/all → JSON/XBS export flow.
+- SourceEditor public API is unchanged and Draft remains private.
+- real SQLite test proves unsaved Editor changes are excluded.
+- no dirty tracking, multi-select, share, non-StandarReader export, Source Tester or Reader work leaked into this phase.
 
 ## Execution Handoff
-
-Recommended execution sequence:
 
 ```text
 Task 1  strong model: export service
@@ -1070,4 +1042,4 @@ Task 4  strong model: SourcePage integration
 Task 5  strong model: SQLite regressions + final acceptance
 ```
 
-At Task 3, strong model must first commit `docs/omniroute/OR-006-source-export-menu.md`, then stop and hand the exact work order to OmniRoute. After OmniRoute returns a commit SHA, strong model reviews the actual diff and CI before starting Task 4.
+At Task 3, strong model first commits `docs/omniroute/OR-006-source-export-menu.md`, then stops for OmniRoute execution. After OmniRoute returns a SHA, strong model reviews the actual diff and CI before Task 4.
