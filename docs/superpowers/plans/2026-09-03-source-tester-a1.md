@@ -78,7 +78,6 @@ import 'package:enough_convert/enough_convert.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:json_path/json_path.dart';
-import 'package:xpath_selector/xpath_selector.dart';
 import 'package:xpath_selector_html_parser/xpath_selector_html_parser.dart';
 
 void main() {
@@ -86,17 +85,17 @@ void main() {
     final client = http.Client();
     addTearDown(client.close);
 
-    final JsonPath jsonPath = JsonPath(r'$');
-    final HtmlXPath html = HtmlXPath.html('<html><body>ok</body></html>');
-    XPath<Object?>? xpathTypeOnly;
+    final jsonPath = JsonPath(r'$');
+    final html = HtmlXPath.html('<html><body>ok</body></html>');
 
     expect(jsonPath.read(<String, Object?>{'ok': true}), isNotEmpty);
     expect(html.query('//body').nodes, isNotEmpty);
-    expect(xpathTypeOnly, isNull);
     expect(gbk.decode(gbk.encode('中文')), '中文');
   });
 }
 ```
+
+`xpath_selector` remains an explicit direct dependency because the HTML adapter is built on that API family, while the smoke test uses the higher-level `HtmlXPath` entry point.
 
 - [ ] **Step 2: Run RED before changing dependencies**
 
@@ -457,11 +456,11 @@ abstract interface class SourceRuleParser {
 }
 ```
 
-`JsonRuleParser` uses `JsonPath(expression).read(json)` only when trimmed expression begins `$`; otherwise use Source Reader's legacy slash path.
+`JsonRuleParser` uses `JsonPath(expression).read(contextJsonValue)` only when trimmed expression begins `$`; otherwise use Source Reader's legacy slash path. Therefore `$` is rooted at the context passed into `evaluate`, including a list item context.
 
 - [ ] **Step 1: RED legacy path fixture**: `items[1]/name=A`, `items[2]/name=B`, `items[-1]/name=B`, `items[-2]/name=A`; zero/out-of-range returns empty result.
-- [ ] **Step 2: RED relative context**: evaluate `items`, then `name` within each item context and get A/B without root restart.
-- [ ] **Step 3: RED RFC JSONPath**: `$.items[*].name` returns A/B; `JsonPathMatch` never escapes this file.
+- [ ] **Step 2: RED relative context**: evaluate `items`, then `name` within each item context and get A/B without root restart. Also evaluate `$.name` against each item context and get A/B.
+- [ ] **Step 3: RED RFC JSONPath**: root `$.items[*].name` returns A/B; `JsonPathMatch` never escapes this file.
 - [ ] **Step 4: RED invalid JSON/expression**: invalid response root is `responseParseFailure`; malformed rule produces adapter evaluation error for later trace capture.
 - [ ] **Step 5: Run RED**
 
@@ -644,7 +643,17 @@ final class PackageHttpSourceExecutor implements SourceHttpExecutor {
 flutter test test/features/source_tester/data/package_http_source_executor_test.dart
 ```
 
-- [ ] **Step 7: Implement with `http.Client.send`**, incremental byte counting, `StreamedResponse.url` for final URI, and stopwatch duration. Close only an internally owned client, never an injected client during `execute`.
+- [ ] **Step 7: Implement with `http.Client.send`**, incremental byte counting and stopwatch duration. Resolve final URI exactly as:
+
+```dart
+final finalUri = switch (response) {
+  http.BaseResponseWithUrl(:final url) => url,
+  _ => request.uri,
+};
+```
+
+Close only an internally owned client, never an injected client during `execute`.
+
 - [ ] **Step 8: Verify and commit**
 
 ```bash
