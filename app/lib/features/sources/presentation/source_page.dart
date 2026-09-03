@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:source_reader/features/sources/application/source_controller.dart';
+import 'package:source_reader/features/sources/application/source_export.dart';
 import 'package:source_reader/features/sources/application/source_providers.dart';
 import 'package:source_reader/features/sources/application/source_selection.dart';
 import 'package:source_reader/features/sources/data/source_repository.dart';
 import 'package:source_reader/features/sources/domain/source_document.dart';
 import 'package:source_reader/features/sources/presentation/source_editor.dart';
+import 'package:source_reader/features/sources/presentation/source_export_menu.dart';
 import 'package:source_reader/features/sources/presentation/source_list.dart';
 
 /// Source Workbench 第一阶段页面壳。
@@ -42,6 +44,16 @@ final class SourcePage extends ConsumerWidget {
             tooltip: '导入书源',
             onPressed: () => _importSource(context, ref),
             icon: const Icon(Icons.file_upload_outlined),
+          ),
+          SourceExportMenu(
+            canExportCurrent: selectedId != null,
+            onExport: (scope, format) => _exportSource(
+              context,
+              ref,
+              scope: scope,
+              format: format,
+              selectedId: selectedId,
+            ),
           ),
           IconButton(
             tooltip: '重新加载',
@@ -99,6 +111,48 @@ final class SourcePage extends ConsumerWidget {
     }
   }
 
+  /// 只从持久化 Repository 构建导出内容，不读取编辑器中的未保存 Draft。
+  Future<void> _exportSource(
+    BuildContext context,
+    WidgetRef ref, {
+    required SourceExportScope scope,
+    required SourceExportFormat format,
+    required int? selectedId,
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final service = ref.read(sourceExportServiceProvider);
+      final payload = switch (scope) {
+        SourceExportScope.current => await service.buildCurrent(
+            id: selectedId!,
+            format: format,
+          ),
+        SourceExportScope.all => await service.buildAll(format: format),
+      };
+      final saved = await ref.read(sourceFileSaverProvider).save(payload);
+      if (!saved || !messenger.mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(content: Text('已导出 ${payload.exportedCount} 个书源')),
+      );
+    } on SourceExportException catch (error) {
+      if (!messenger.mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(content: Text(_exportErrorMessage(error.reason))),
+      );
+    } catch (error) {
+      if (!messenger.mounted) {
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(content: Text('导出失败：$error')),
+      );
+    }
+  }
+
   Future<void> _saveSource(
     BuildContext context,
     WidgetRef ref,
@@ -126,6 +180,15 @@ final class SourcePage extends ConsumerWidget {
       );
     }
   }
+}
+
+String _exportErrorMessage(SourceExportFailureReason reason) {
+  return switch (reason) {
+    SourceExportFailureReason.notFound => '当前书源已不存在',
+    SourceExportFailureReason.unsupportedPlatform => '当前书源平台暂不支持导出',
+    SourceExportFailureReason.empty => '没有可导出的书源',
+    SourceExportFailureReason.encodingFailed => '导出编码失败',
+  };
 }
 
 typedef _SourceSaveCallback = Future<void> Function(
