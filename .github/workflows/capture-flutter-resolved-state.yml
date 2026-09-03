@@ -8,6 +8,8 @@ on:
 jobs:
   capture:
     runs-on: ubuntu-latest
+    env:
+      PUB_HOSTED_URL: https://pub.flutter-io.cn
     defaults:
       run:
         working-directory: app
@@ -20,19 +22,9 @@ jobs:
           git clone --depth 1 --branch 3.47.0 https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
 
-      - name: Resolve project state
+      - name: Resolve with repository hosted source
         run: flutter pub get
 
-      - name: Show generated diff
+      - name: Verify lockfile remains unchanged
         working-directory: .
-        run: git diff -- app/pubspec.lock app/analysis_options.yaml
-
-      - name: Upload resolved files
-        uses: actions/upload-artifact@v4
-        with:
-          name: flutter-resolved-state
-          path: |
-            app/pubspec.lock
-            app/analysis_options.yaml
-          if-no-files-found: error
-          retention-days: 1
+        run: git diff --exit-code -- app/pubspec.lock
