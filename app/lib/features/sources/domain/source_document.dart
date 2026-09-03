@@ -1,3 +1,4 @@
+import 'package:source_reader/features/sources/domain/source_book_detail_document.dart';
 import 'package:source_reader/features/sources/domain/source_search_book_document.dart';
 
 /// 书源文档的领域边界。
@@ -34,6 +35,23 @@ final class SourceDocument {
       converted[key] = entry.value;
     }
     return SourceSearchBookDocument.fromRaw(converted);
+  }
+
+  SourceBookDetailDocument? get bookDetail {
+    final value = _raw['bookDetail'];
+    if (value is! Map) {
+      return null;
+    }
+
+    final converted = <String, Object?>{};
+    for (final entry in value.entries) {
+      final key = entry.key;
+      if (key is! String) {
+        return null;
+      }
+      converted[key] = entry.value;
+    }
+    return SourceBookDetailDocument.fromRaw(converted);
   }
 
   bool get enabled {
