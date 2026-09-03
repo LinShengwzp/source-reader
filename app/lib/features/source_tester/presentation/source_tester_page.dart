@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:source_reader/features/source_tester/application/source_request_builder.dart';
+import 'package:source_reader/features/source_tester/application/search_book_request_builder.dart';
 import 'package:source_reader/features/source_tester/application/source_tester_providers.dart';
 import 'package:source_reader/features/source_tester/domain/source_test_error.dart';
 import 'package:source_reader/features/source_tester/domain/source_test_report.dart';
