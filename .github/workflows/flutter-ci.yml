@@ -18,6 +18,8 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Flutter 3.47.0
         shell: bash
@@ -59,10 +61,11 @@ jobs:
 
           exit "$test_status"
 
-      - name: Verify clean worktree
+      - name: Verify clean worktree and A1 diff
         working-directory: .
         shell: bash
         run: |
+          git diff --check 32f9a5a826f78b0609073f9141c4226daee271cf..HEAD
           git diff --check
           git diff --exit-code
           test -z "$(git status --porcelain)"
