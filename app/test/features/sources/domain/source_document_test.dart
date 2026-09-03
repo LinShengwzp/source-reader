@@ -96,4 +96,31 @@ void main() {
     expect(nonStringKey.searchBook, isNull);
     expect(nonStringKey.toRaw()['searchBook'], isA<Map<Object?, Object?>>());
   });
+
+  test('bookDetail 使用 typed facade 且非法 raw 原值保持不变', () {
+    final valid = SourceDocument.fromRaw(<String, Object?>{
+      'bookDetail': <String, Object?>{
+        'actionID': 'bookDetail',
+        'cover': '//img/@src',
+        'futureDetailField': 'keep',
+      },
+    });
+    expect(valid.bookDetail?.cover, '//img/@src');
+    expect(valid.bookDetail?.toRaw()['futureDetailField'], 'keep');
+
+    final malformed = SourceDocument.fromRaw(<String, Object?>{
+      'bookDetail': 'legacy-invalid-value',
+    });
+    expect(malformed.bookDetail, isNull);
+    expect(malformed.toRaw()['bookDetail'], 'legacy-invalid-value');
+
+    final nonStringKey = SourceDocument.fromRaw(<String, Object?>{
+      'bookDetail': <Object?, Object?>{
+        'actionID': 'bookDetail',
+        1: 'invalid-key',
+      },
+    });
+    expect(nonStringKey.bookDetail, isNull);
+    expect(nonStringKey.toRaw()['bookDetail'], isA<Map<Object?, Object?>>());
+  });
 }
