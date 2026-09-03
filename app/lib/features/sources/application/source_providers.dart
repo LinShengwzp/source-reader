@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:source_reader/core/database/app_database.dart';
+import 'package:source_reader/features/sources/application/source_export.dart';
 import 'package:source_reader/features/sources/application/source_file_picker.dart';
+import 'package:source_reader/features/sources/application/source_file_saver.dart';
 import 'package:source_reader/features/sources/application/source_import.dart';
 import 'package:source_reader/features/sources/data/file_picker_source_file_picker.dart';
+import 'package:source_reader/features/sources/data/file_picker_source_file_saver.dart';
 import 'package:source_reader/features/sources/data/source_repository.dart';
 import 'package:source_reader/features/sources/data/sqlite_source_repository.dart';
 
@@ -30,4 +33,14 @@ final sourceImportServiceProvider = Provider<SourceImportService>((ref) {
 /// 书源文件选择器边界。UI 通过此 provider 获取选中的文件 payload，不直接依赖 file_picker。
 final sourceFilePickerProvider = Provider<SourceFilePicker>((ref) {
   return FilePickerSourceFilePicker();
+});
+
+/// 书源导出用例服务。只读取 Repository 中已经持久化的书源。
+final sourceExportServiceProvider = Provider<SourceExportService>((ref) {
+  return SourceExportService(ref.watch(sourceRepositoryProvider));
+});
+
+/// 导出文件保存边界。默认实现通过系统保存对话框落盘。
+final sourceFileSaverProvider = Provider<SourceFileSaver>((ref) {
+  return FilePickerSourceFileSaver();
 });
