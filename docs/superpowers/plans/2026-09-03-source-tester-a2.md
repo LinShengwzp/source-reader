@@ -160,7 +160,7 @@ Expected: FAIL because `SourceBookDetailDocument` and `SourceDocument.bookDetail
 
 - [ ] **Step 3: Implement the typed facade and accessor**
 
-Create the facade with this shape:
+Create:
 
 ```dart
 import 'package:source_reader/features/sources/domain/source_action_document.dart';
@@ -241,7 +241,7 @@ git commit -m "feat: add book detail source domain facade"
 
 - [ ] **Step 1: Convert the A1 request test to the new class name before production code exists**
 
-In the renamed test, instantiate:
+Instantiate:
 
 ```dart
 final builder = SearchBookRequestBuilder(
@@ -249,7 +249,7 @@ final builder = SearchBookRequestBuilder(
 );
 ```
 
-Keep the existing assertions for UTF-8/GBK encoding, placeholders, relative URL resolution, header parsing/override, invalid headers, script requests, and unknown placeholders unchanged.
+Keep every existing assertion in the old `source_request_builder_test.dart`: UTF-8/GBK parameter encoding, known placeholder substitution, unknown placeholder rejection, relative URL resolution, global/action header parsing and override, invalid headers, and script request rejection.
 
 - [ ] **Step 2: Run the request test and verify RED**
 
@@ -259,9 +259,9 @@ flutter test test/features/source_tester/application/search_book_request_builder
 
 Expected: FAIL because `SearchBookRequestBuilder` and `SourceActionRequestBuilder` do not exist.
 
-- [ ] **Step 3: Extract shared URL/header logic and keep Search substitutions isolated**
+- [ ] **Step 3: Extract shared URL/header code and isolate Search substitutions**
 
-`source_action_request_builder.dart` must expose:
+Move the current `_resolveRequestUri`, `_parseHeaders`, and `_mergeHeaders` implementations unchanged into `source_action_request_builder.dart`. The shared builder must expose:
 
 ```dart
 final class BuiltSourceActionRequest {
@@ -283,16 +283,45 @@ final class SourceActionRequestBuilder {
     required Object? actionHttpHeaders,
     required String actionName,
   }) {
-    // 1. reject residual %@... placeholders
-    // 2. resolve absolute/relative HTTP(S) URI against persisted sourceUrl
-    // 3. parse global and action headers using A1 rules
-    // 4. merge action headers over global headers case-insensitively
-    // 5. return SourceHttpRequest(method: get)
+    final unknownPlaceholder = RegExp(
+      r'%@[A-Za-z_][A-Za-z0-9_]*',
+    ).firstMatch(resolvedRequestInfo);
+    if (unknownPlaceholder != null) {
+      throw SourceTestException(
+        SourceTestFailureReason.unknownPlaceholder,
+        message: unknownPlaceholder.group(0),
+      );
+    }
+
+    final uri = _resolveRequestUri(
+      resolvedRequestInfo,
+      source.document.sourceUrl,
+    );
+    final warnings = <String>[];
+    final globalHeaders = _parseHeaders(
+      source.document.toRaw()['httpHeaders'],
+      warnings: warnings,
+      scope: 'global',
+    );
+    final actionHeaders = _parseHeaders(
+      actionHttpHeaders,
+      warnings: warnings,
+      scope: actionName,
+    );
+
+    return BuiltSourceActionRequest(
+      request: SourceHttpRequest(
+        uri: uri,
+        method: SourceHttpMethod.get,
+        headers: _mergeHeaders(globalHeaders, actionHeaders),
+      ),
+      warnings: warnings,
+    );
   }
 }
 ```
 
-`search_book_request_builder.dart` must retain A1 inputs and parameter encoding:
+Create `SearchBookRequestBuilder` by retaining the current `SearchBookTestInput`, `BuiltSearchBookRequest`, `_RequestEncoding`, `_requestEncoding`, `_encodeParameter`, and `_isUnreserved` logic. The build method becomes:
 
 ```dart
 final class SearchBookRequestBuilder {
@@ -338,7 +367,7 @@ final class SearchBookRequestBuilder {
 }
 ```
 
-Update Search runner/providers/tests to construct `SearchBookRequestBuilder(actionBuilder: const SourceActionRequestBuilder())`.
+Update Search runner/providers/tests to construct `SearchBookRequestBuilder(actionBuilder: const SourceActionRequestBuilder())`. Delete `source_request_builder.dart` only after the focused A1 suite compiles with the new files.
 
 - [ ] **Step 4: Run the complete A1 request/runner/page regression set**
 
@@ -374,7 +403,7 @@ git commit -m "refactor: split source tester request builders"
 - Consumes: `SourceBookDetailDocument`, `SourceActionRequestBuilder`.
 - Produces: `BookDetailTestInput`, `BuiltBookDetailRequest`, `SourceTestRequestOrigin`.
 
-- [ ] **Step 1: Write failing tests for all three request modes**
+- [ ] **Step 1: Write failing tests for inheritance, raw substitution, fixed requests, and errors**
 
 ```dart
 test('blank requestInfo inherits relative parentResult', () {
@@ -414,7 +443,7 @@ test('fixed requestInfo does not require parentResult', () {
 });
 ```
 
-Add error tests that assert `parentResultMissing` for blank request info or `%@result` with blank input, and existing `unknownPlaceholder` / `unsupportedScriptRequest` for unsupported configured requests.
+Add tests that assert `parentResultMissing` for blank request info or `%@result` with blank input, plus existing `unknownPlaceholder` and `unsupportedScriptRequest` behavior.
 
 - [ ] **Step 2: Run the focused test and verify RED**
 
@@ -422,11 +451,22 @@ Add error tests that assert `parentResultMissing` for blank request info or `%@r
 flutter test test/features/source_tester/application/book_detail_request_builder_test.dart
 ```
 
-Expected: FAIL because A2 request types and new failure reason do not exist.
+Expected: FAIL because A2 request types and new failure reasons do not exist.
 
 - [ ] **Step 3: Implement Book Detail request selection**
 
-Use this exact decision order:
+Add once in `source_test_report.dart`:
+
+```dart
+enum SourceTestRequestOrigin {
+  configuredRequestInfo,
+  inheritedParentResult,
+}
+```
+
+Add `bookDetailMissing` and `parentResultMissing` to `SourceTestFailureReason`.
+
+Create:
 
 ```dart
 final class BookDetailTestInput {
@@ -449,7 +489,7 @@ final class BuiltBookDetailRequest {
 }
 ```
 
-Builder logic:
+Use this exact decision order:
 
 ```dart
 final configured = bookDetail.action.requestInfo?.trim();
@@ -478,11 +518,16 @@ if (configured == null || configured.isEmpty) {
   }
   origin = SourceTestRequestOrigin.configuredRequestInfo;
 }
+
+final built = actionBuilder.build(
+  source: source,
+  resolvedRequestInfo: effective,
+  actionHttpHeaders: bookDetail.toRaw()['httpHeaders'],
+  actionName: 'bookDetail',
+);
 ```
 
-Then call `SourceActionRequestBuilder` with `bookDetail.toRaw()['httpHeaders']` and `actionName: 'bookDetail'`.
-
-Add `bookDetailMissing` and `parentResultMissing` to `SourceTestFailureReason`; only the latter is required by this task's builder.
+Return `BuiltBookDetailRequest` with the persisted raw `requestInfo`, selected origin, shared request, and warnings.
 
 - [ ] **Step 4: Run Book Detail request tests plus the A1 request suite**
 
@@ -552,9 +597,9 @@ flutter test \
   test/features/source_tester/application/search_book_result_parser_test.dart
 ```
 
-Expected: new evaluator test FAIL because the evaluator does not exist; existing Search parser tests still PASS before production refactor.
+Expected: new evaluator test FAIL because the evaluator does not exist; existing Search parser tests remain green before production refactor.
 
-- [ ] **Step 3: Move `_evaluatePipeline` behavior into a stateless shared evaluator**
+- [ ] **Step 3: Move the existing private pipeline implementation into a shared stateless service**
 
 Expose:
 
@@ -590,30 +635,78 @@ final class SourceRulePipelineEvaluator {
     required SourceRuleContext initialContext,
     required String rule,
   }) {
-    // Copy A1 execution semantics exactly from SearchBookResultParser.
-  }
-}
-```
-
-Move first-scalar conversion into:
-
-```dart
-String? sourceRuleValueFirstText(SourceRuleValue value) {
-  for (final raw in _flatten(value)) {
-    if (raw == null) continue;
-    if (raw is String) return raw.trim();
-    if (raw is num || raw is bool) return raw.toString();
+    List<SourceRulePipelineStage> pipeline;
     try {
-      return jsonEncode(raw);
-    } catch (_) {
-      return raw.toString();
+      pipeline = tokenizeSourceRulePipeline(rule);
+    } on SourceRulePipelineFormatException catch (error) {
+      return SourceRulePipelineEvaluation(
+        value: SourceRuleList(const <SourceRuleValue>[]),
+        contexts: const <SourceRuleContext>[],
+        stages: const <String>[],
+        warnings: const <String>[],
+        errors: <String>[error.message],
+        partial: false,
+        executedDeclarative: false,
+      );
     }
+
+    var contexts = <SourceRuleContext>[initialContext];
+    SourceRuleValue value = SourceRuleList(const <SourceRuleValue>[]);
+    final warnings = <String>[];
+    final errors = <String>[];
+    var partial = false;
+    var executedDeclarative = false;
+
+    for (final stage in pipeline) {
+      if (stage.isJavaScript) {
+        partial = true;
+        warnings.add('JS 阶段未执行: ${stage.expression}');
+        break;
+      }
+      executedDeclarative = true;
+      if (contexts.isEmpty) {
+        value = SourceRuleList(const <SourceRuleValue>[]);
+        break;
+      }
+
+      final nextContexts = <SourceRuleContext>[];
+      final nextValues = <Object?>[];
+      for (final context in contexts) {
+        try {
+          final evaluation = parser.evaluate(
+            context: context,
+            expression: stage.expression,
+          );
+          nextContexts.addAll(evaluation.contexts);
+          nextValues.addAll(_flattenValue(evaluation.value));
+        } on SourceRuleEvaluationException catch (error) {
+          errors.add(error.message);
+        } catch (error) {
+          errors.add('规则执行失败: $error');
+        }
+      }
+      contexts = nextContexts;
+      value = _valueFromObjects(nextValues);
+    }
+
+    return SourceRulePipelineEvaluation(
+      value: value,
+      contexts: contexts,
+      stages: pipeline.map((stage) => stage.expression).toList(growable: false),
+      warnings: warnings,
+      errors: errors,
+      partial: partial,
+      executedDeclarative: executedDeclarative,
+    );
   }
-  return null;
 }
 ```
 
-Change `SearchBookResultParser` to require a `SourceRulePipelineEvaluator` and replace all calls to its old private evaluator with `pipelineEvaluator.evaluate(...)`. Remove the duplicated private evaluator/value-flatten implementation only after the Search tests compile against the shared service.
+Move the current `_flattenValue` and `_valueFromObjects` implementations from `SearchBookResultParser` into this file as private helpers.
+
+Create `source_rule_value_text.dart` by moving the current Search `_firstText` behavior into `sourceRuleValueFirstText(SourceRuleValue value)`, preserving string trimming, num/bool conversion, JSON encoding of structured values, and fallback `toString()`.
+
+Change `SearchBookResultParser` to require a `SourceRulePipelineEvaluator` and use `sourceRuleValueFirstText`. Remove its duplicated private evaluator/value conversion only after Search tests compile against the shared service.
 
 - [ ] **Step 4: Run tokenizer, evaluator, and full Search parser tests**
 
@@ -677,7 +770,7 @@ test('missing responseFormatType remains unsupported legacy str', () {
 });
 ```
 
-Also cover `str`, `xml`, `data`, `filePath`, and an unknown string as unsupported.
+Also assert `str`, `xml`, `data`, `filePath`, and an unknown string are unsupported.
 
 - [ ] **Step 2: Run registry and Search Runner tests and verify RED**
 
@@ -766,13 +859,14 @@ git commit -m "refactor: centralize source tester parser selection"
 - Modify A1 tests that refer to `SearchBookTestOutcome` or construct `SourceTestRequestSnapshot`.
 
 **Interfaces:**
-- Produces: `SourceTestOutcome`, `SourceTestRequestOrigin`, request snapshot `origin`.
+- Consumes: `SourceTestRequestOrigin` introduced once in Task 3.
+- Produces: shared `SourceTestOutcome` and request snapshot `origin`.
 - Keeps `SearchBookTestReport` concrete and Search-specific.
 
 - [ ] **Step 1: Write failing shared-report tests**
 
 ```dart
-test('request snapshot records configured or inherited origin', () {
+test('request snapshot stores the existing shared request origin', () {
   final snapshot = SourceTestRequestSnapshot(
     originalRequestInfo: '/search',
     origin: SourceTestRequestOrigin.configuredRequestInfo,
@@ -783,7 +877,7 @@ test('request snapshot records configured or inherited origin', () {
   expect(snapshot.origin, SourceTestRequestOrigin.configuredRequestInfo);
 });
 
-test('SourceTestOutcome is shared by Search report', () {
+test('SourceTestOutcome replaces the Search-specific enum', () {
   expect(SourceTestOutcome.values, contains(SourceTestOutcome.success));
   expect(SourceTestOutcome.values, contains(SourceTestOutcome.completedWithWarnings));
 });
@@ -797,34 +891,37 @@ flutter test \
   test/features/source_tester/presentation/source_tester_report_view_test.dart
 ```
 
-Expected: FAIL because shared outcome/origin API is not yet present.
+Expected: FAIL because `SourceTestRequestSnapshot` has no `origin` yet and `SourceTestOutcome` does not exist.
 
-- [ ] **Step 3: Rename the outcome and make request origin explicit**
+- [ ] **Step 3: Rename the outcome and wire the already-defined origin into snapshots**
 
-Use:
+Replace:
+
+```dart
+enum SearchBookTestOutcome { success, completedWithWarnings }
+```
+
+with:
 
 ```dart
 enum SourceTestOutcome { success, completedWithWarnings }
-
-enum SourceTestRequestOrigin {
-  configuredRequestInfo,
-  inheritedParentResult,
-}
 ```
 
-Update `SourceTestRequestSnapshot`:
+Add to `SourceTestRequestSnapshot`:
 
 ```dart
+required this.origin,
+...
 final SourceTestRequestOrigin origin;
 ```
 
-Update A1 Runner to set:
+Update A1 Runner request snapshot construction with:
 
 ```dart
 origin: SourceTestRequestOrigin.configuredRequestInfo,
 ```
 
-Replace every `SearchBookTestOutcome` reference with `SourceTestOutcome`, including `_outcomeText` in the current A1 report view.
+Replace every `SearchBookTestOutcome` reference with `SourceTestOutcome`, including `_outcomeText` in the current Search report view. Do not redeclare `SourceTestRequestOrigin`; Task 3 is the single definition site.
 
 - [ ] **Step 4: Run all Source Tester domain/application/presentation tests**
 
@@ -945,11 +1042,11 @@ git commit -m "refactor: share source result URL normalization"
 
 **Interfaces:**
 - Consumes: `SourceBookDetailDocument`, `SourceRuleParser`, `SourceRulePipelineEvaluator`, `sourceRuleValueFirstText`, `normalizeSourceResultUrl`.
-- Produces: `BookDetailTestResult`, `BookDetailParseResult`, `BookDetailTestReport` types needed by the Runner.
+- Produces: `BookDetailTestInputSnapshot`, `BookDetailTestResult`, `BookDetailParseResult`, `BookDetailTestReport`.
 
 - [ ] **Step 1: Write failing HTML/JSON/parser-isolation tests**
 
-Use a real `HtmlXPathRuleParser` fixture for one test:
+Use a real `HtmlXPathRuleParser` fixture:
 
 ```dart
 test('parses six HTML detail fields from root context', () {
@@ -980,16 +1077,7 @@ test('parses six HTML detail fields from root context', () {
 });
 ```
 
-Add tests for:
-
-```dart
-// one malformed field -> that field null, others still parsed
-// "//div/text() || @js: result" -> supported prefix retained + partial trace
-// JS-only field -> null + partial trace
-// configured JSParser -> warning
-// no configured fields -> empty result + warning, not exception
-// JSON legacy slash path and $ JSONPath using JsonRuleParser
-```
+Add concrete tests for: one malformed field leaves other values intact; `declarative || @js` retains declarative output with partial trace; JS-only field is null with partial trace; configured `JSParser` adds a warning; six blank rules produce an empty result plus `bookDetail 未配置可执行响应规则`; legacy JSON slash paths and `$` JSONPath work through `JsonRuleParser`.
 
 - [ ] **Step 2: Run the Book Detail parser test and verify RED**
 
@@ -1037,11 +1125,51 @@ final class BookDetailParseResult {
   final List<SourceRuleTrace> traces;
   final List<String> warnings;
 }
+
+final class BookDetailTestReport {
+  BookDetailTestReport({
+    required this.sourceId,
+    required this.sourceName,
+    required this.platform,
+    required this.input,
+    required this.request,
+    required this.response,
+    required this.result,
+    required List<SourceRuleTrace> traces,
+    required List<String> warnings,
+    required this.outcome,
+  })  : traces = List.unmodifiable(traces),
+        warnings = List.unmodifiable(warnings);
+
+  final int sourceId;
+  final String? sourceName;
+  final String platform;
+  final BookDetailTestInputSnapshot input;
+  final SourceTestRequestSnapshot request;
+  final SourceTestResponseSnapshot response;
+  final BookDetailTestResult result;
+  final List<SourceRuleTrace> traces;
+  final List<String> warnings;
+  final SourceTestOutcome outcome;
+}
 ```
 
-The parser must create one root context, then evaluate each configured field independently with `pipelineEvaluator.evaluate(...)`. It must never require a list rule. For each configured rule, add one `SourceRuleTrace` with that field name. Normalize only `cover` using `normalizeSourceResultUrl`.
+`BookDetailResultParser` must create one root context and iterate this exact field table:
 
-If `parser.createRoot(responseText)` itself fails, convert that failure to:
+```dart
+final fields = <(String, String?, bool)>[
+  ('cover', bookDetail.cover, true),
+  ('desc', bookDetail.desc, false),
+  ('cat', bookDetail.cat, false),
+  ('status', bookDetail.status, false),
+  ('wordCount', bookDetail.wordCount, false),
+  ('lastChapterTitle', bookDetail.lastChapterTitle, false),
+];
+```
+
+For each non-blank rule, call `pipelineEvaluator.evaluate(...)`, convert output with `sourceRuleValueFirstText`, normalize only `cover`, and create one `SourceRuleTrace`. A field with evaluation errors returns null without stopping later fields.
+
+If `parser.createRoot(responseText)` throws, convert it to:
 
 ```dart
 SourceTestException(
@@ -1051,7 +1179,7 @@ SourceTestException(
 )
 ```
 
-If all six rules are blank, append `bookDetail 未配置可执行响应规则` and return an empty `BookDetailTestResult`.
+If all six rules are blank, append `bookDetail 未配置可执行响应规则`. If `bookDetail.action.jsParser` is non-blank, append `bookDetail.JSParser 当前版本未执行`. Parse malformed/non-object `moreKeys` as diagnostics only; do not apply `skipCount`, pagination, or request filters.
 
 - [ ] **Step 4: Run Book Detail parser plus A1 Search parser regression**
 
@@ -1084,8 +1212,6 @@ git commit -m "feat: parse book detail test results"
 
 - [ ] **Step 1: Write failing Runner tests for persistence, HTTP warnings, and encoding**
 
-At minimum include:
-
 ```dart
 test('reloads persisted source and returns parsed detail report', () async {
   final executor = _FakeExecutor(_detailResponse());
@@ -1106,7 +1232,7 @@ test('reloads persisted source and returns parsed detail report', () async {
 });
 ```
 
-Add focused tests for `sourceNotFound`, `unsupportedPlatform`, `bookDetailMissing`, HTTP 404/500 retained as reports with warnings, GBK decoding, and transport exception propagation/mapping.
+Add concrete tests for `sourceNotFound`, `unsupportedPlatform`, `bookDetailMissing`, HTTP 404/500 retained with warnings, GBK decoding, and transport failures.
 
 - [ ] **Step 2: Run the Runner test and verify RED**
 
@@ -1131,13 +1257,18 @@ const BookDetailTestRunner({
 });
 ```
 
-Run flow:
+Core flow:
 
 ```dart
 final source = await repository.getSource(sourceId);
-if (source == null) throw const SourceTestException(SourceTestFailureReason.sourceNotFound);
+if (source == null) {
+  throw const SourceTestException(SourceTestFailureReason.sourceNotFound);
+}
 if (source.platform != 'StandarReader') {
-  throw SourceTestException(SourceTestFailureReason.unsupportedPlatform, message: source.platform);
+  throw SourceTestException(
+    SourceTestFailureReason.unsupportedPlatform,
+    message: source.platform,
+  );
 }
 final bookDetail = source.document.bookDetail;
 if (bookDetail == null) {
@@ -1158,11 +1289,55 @@ final parsed = resultParser.parse(
   finalResponseUri: response.finalUri,
   sourceUrl: source.document.sourceUrl,
 );
+
+final warnings = <String>[
+  ...built.warnings,
+  ...decoded.warnings,
+  ...parsed.warnings,
+];
+if (response.statusCode < 200 || response.statusCode >= 300) {
+  warnings.add('HTTP 状态码 ${response.statusCode}');
+}
+final hasTraceDiagnostics = parsed.traces.any(
+  (trace) => trace.partial || trace.warnings.isNotEmpty || trace.errors.isNotEmpty,
+);
+final outcome = warnings.isEmpty && !hasTraceDiagnostics
+    ? SourceTestOutcome.success
+    : SourceTestOutcome.completedWithWarnings;
 ```
 
-Collect request warnings + decode warnings + parse warnings; append `HTTP 状态码 N` for non-2xx. Outcome is success only when warnings are empty and no trace is partial/has warnings/has errors.
+Return:
 
-Build `BookDetailTestReport` with input snapshot, request origin, response snapshot, result, traces, warnings, and shared outcome.
+```dart
+BookDetailTestReport(
+  sourceId: source.id,
+  sourceName: source.document.sourceName,
+  platform: source.platform,
+  input: BookDetailTestInputSnapshot(parentResult: input.parentResult),
+  request: SourceTestRequestSnapshot(
+    originalRequestInfo: built.originalRequestInfo ?? '',
+    origin: built.origin,
+    uri: built.request.uri,
+    method: built.request.method,
+    headers: built.request.headers,
+  ),
+  response: SourceTestResponseSnapshot(
+    statusCode: response.statusCode,
+    finalUri: response.finalUri,
+    headers: response.headers,
+    duration: response.duration,
+    byteCount: response.bodyBytes.length,
+    encoding: decoded.encoding.name,
+    decodedBody: decoded.text,
+  ),
+  result: parsed.result,
+  traces: parsed.traces,
+  warnings: warnings,
+  outcome: outcome,
+);
+```
+
+Do not change `SourceTestRequestSnapshot.originalRequestInfo` to nullable in A2; use an empty string for inherited requests and rely on `origin` to explain why.
 
 - [ ] **Step 4: Run Book Detail and Search Runner tests together**
 
@@ -1202,8 +1377,14 @@ test('provides Book Detail runner and shared evaluator/registry', () {
   ]);
   addTearDown(container.dispose);
 
-  expect(container.read(sourceRulePipelineEvaluatorProvider), isA<SourceRulePipelineEvaluator>());
-  expect(container.read(sourceRuleParserRegistryProvider), isA<SourceRuleParserRegistry>());
+  expect(
+    container.read(sourceRulePipelineEvaluatorProvider),
+    isA<SourceRulePipelineEvaluator>(),
+  );
+  expect(
+    container.read(sourceRuleParserRegistryProvider),
+    isA<SourceRuleParserRegistry>(),
+  );
   expect(container.read(bookDetailTestRunnerProvider), isA<BookDetailTestRunner>());
 });
 ```
@@ -1218,35 +1399,53 @@ Expected: FAIL because new providers do not exist.
 
 - [ ] **Step 3: Add provider wiring with one shared instance per provider graph**
 
-Provide at least:
-
 ```dart
-final sourceActionRequestBuilderProvider = Provider((ref) => const SourceActionRequestBuilder());
-final searchBookRequestBuilderProvider = Provider((ref) => SearchBookRequestBuilder(
-  actionBuilder: ref.watch(sourceActionRequestBuilderProvider),
-));
-final bookDetailRequestBuilderProvider = Provider((ref) => BookDetailRequestBuilder(
-  actionBuilder: ref.watch(sourceActionRequestBuilderProvider),
-));
-final sourceRulePipelineEvaluatorProvider = Provider((ref) => const SourceRulePipelineEvaluator());
-final sourceRuleParserRegistryProvider = Provider((ref) => SourceRuleParserRegistry(
-  htmlParser: ref.watch(sourceHtmlParserProvider),
-  jsonParser: ref.watch(sourceJsonParserProvider),
-));
-final bookDetailResultParserProvider = Provider((ref) => BookDetailResultParser(
-  pipelineEvaluator: ref.watch(sourceRulePipelineEvaluatorProvider),
-));
-final bookDetailTestRunnerProvider = Provider((ref) => BookDetailTestRunner(
-  repository: ref.watch(sourceRepositoryProvider),
-  requestBuilder: ref.watch(bookDetailRequestBuilderProvider),
-  httpExecutor: ref.watch(sourceHttpExecutorProvider),
-  responseDecoder: ref.watch(sourceResponseDecoderProvider),
-  parserRegistry: ref.watch(sourceRuleParserRegistryProvider),
-  resultParser: ref.watch(bookDetailResultParserProvider),
-));
+final sourceActionRequestBuilderProvider = Provider<SourceActionRequestBuilder>((ref) {
+  return const SourceActionRequestBuilder();
+});
+
+final searchBookRequestBuilderProvider = Provider<SearchBookRequestBuilder>((ref) {
+  return SearchBookRequestBuilder(
+    actionBuilder: ref.watch(sourceActionRequestBuilderProvider),
+  );
+});
+
+final bookDetailRequestBuilderProvider = Provider<BookDetailRequestBuilder>((ref) {
+  return BookDetailRequestBuilder(
+    actionBuilder: ref.watch(sourceActionRequestBuilderProvider),
+  );
+});
+
+final sourceRulePipelineEvaluatorProvider = Provider<SourceRulePipelineEvaluator>((ref) {
+  return const SourceRulePipelineEvaluator();
+});
+
+final sourceRuleParserRegistryProvider = Provider<SourceRuleParserRegistry>((ref) {
+  return SourceRuleParserRegistry(
+    htmlParser: ref.watch(sourceHtmlParserProvider),
+    jsonParser: ref.watch(sourceJsonParserProvider),
+  );
+});
+
+final bookDetailResultParserProvider = Provider<BookDetailResultParser>((ref) {
+  return BookDetailResultParser(
+    pipelineEvaluator: ref.watch(sourceRulePipelineEvaluatorProvider),
+  );
+});
+
+final bookDetailTestRunnerProvider = Provider<BookDetailTestRunner>((ref) {
+  return BookDetailTestRunner(
+    repository: ref.watch(sourceRepositoryProvider),
+    requestBuilder: ref.watch(bookDetailRequestBuilderProvider),
+    httpExecutor: ref.watch(sourceHttpExecutorProvider),
+    responseDecoder: ref.watch(sourceResponseDecoderProvider),
+    parserRegistry: ref.watch(sourceRuleParserRegistryProvider),
+    resultParser: ref.watch(bookDetailResultParserProvider),
+  );
+});
 ```
 
-Also update the Search providers to consume the new Search builder, shared evaluator, and parser registry.
+Update Search providers to consume `searchBookRequestBuilderProvider`, `sourceRulePipelineEvaluatorProvider`, and `sourceRuleParserRegistryProvider` instead of constructing old request/parser dependencies directly.
 
 - [ ] **Step 4: Run provider + both Runner tests**
 
@@ -1299,7 +1498,18 @@ testWidgets('allows blank parent result because Runner decides if it is required
 });
 
 testWidgets('disables run button while running', (tester) async {
-  // Pump running: true and assert the FilledButton is disabled.
+  await tester.pumpWidget(MaterialApp(
+    home: Scaffold(
+      body: SourceBookDetailInputPanel(
+        running: true,
+        onRun: (_) {},
+      ),
+    ),
+  ));
+  final button = tester.widget<ButtonStyleButton>(
+    find.byKey(const Key('source-tester-detail-run')),
+  );
+  expect(button.enabled, isFalse);
 });
 ```
 
@@ -1311,16 +1521,9 @@ flutter test test/features/source_tester/presentation/source_book_detail_input_p
 
 Expected: FAIL because the widget does not exist.
 
-- [ ] **Step 3: Implement a minimal stateful input panel**
+- [ ] **Step 3: Implement the input panel**
 
-Use keys:
-
-```text
-source-tester-detail-parent-result
-source-tester-detail-run
-```
-
-Submission model:
+Use:
 
 ```dart
 final class SourceBookDetailInput {
@@ -1329,7 +1532,15 @@ final class SourceBookDetailInput {
 }
 ```
 
-The button must call `onRun(SourceBookDetailInput(parentResult: controller.text.trim()))` without UI-required validation.
+The `TextField` key is `source-tester-detail-parent-result`, label is `上一级结果 URL`, helper text includes `通常填写 searchBook.detailUrl。requestInfo 为空或包含 %@result 时需要填写。`, and the run button key is `source-tester-detail-run` with text `运行详情测试`.
+
+The button must call:
+
+```dart
+onRun(SourceBookDetailInput(parentResult: controller.text.trim()));
+```
+
+without required-field validation. Set `onPressed: null` while `running`.
 
 - [ ] **Step 4: Run the widget test**
 
@@ -1361,7 +1572,7 @@ git commit -m "feat: add book detail tester input panel"
 - [ ] **Step 1: Write failing mode-selector tests**
 
 ```dart
-testWidgets('defaults are rendered with stable Search and Detail keys', (tester) async {
+testWidgets('switches from Search to Book Detail', (tester) async {
   SourceTesterMode selected = SourceTesterMode.search;
   await tester.pumpWidget(MaterialApp(
     home: StatefulBuilder(builder: (context, setState) {
@@ -1379,9 +1590,20 @@ testWidgets('defaults are rendered with stable Search and Detail keys', (tester)
   await tester.pump();
   expect(selected, SourceTesterMode.bookDetail);
 });
-```
 
-Add a second test that `running: true` prevents changing modes.
+testWidgets('running selector cannot change mode', (tester) async {
+  var selected = SourceTesterMode.search;
+  await tester.pumpWidget(MaterialApp(
+    home: SourceTesterModeSelector(
+      value: selected,
+      running: true,
+      onChanged: (value) => selected = value,
+    ),
+  ));
+  await tester.tap(find.byKey(const Key('source-tester-mode-book-detail')));
+  expect(selected, SourceTesterMode.search);
+});
+```
 
 - [ ] **Step 2: Run the selector test and verify RED**
 
@@ -1397,9 +1619,7 @@ Expected: FAIL because selector types do not exist.
 enum SourceTesterMode { search, bookDetail }
 ```
 
-Use a `SegmentedButton<SourceTesterMode>` with two `ButtonSegment`s. Set `onSelectionChanged: null` while `running`; otherwise call `onChanged(selection.single)`.
-
-Label segments `搜索测试` and `书籍详情` and keep stable keys on segment labels/content.
+Use `SegmentedButton<SourceTesterMode>` with one selected value. Segment labels are `Text('搜索测试', key: Key('source-tester-mode-search'))` and `Text('书籍详情', key: Key('source-tester-mode-book-detail'))`. Set `onSelectionChanged: null` while `running`; otherwise call `onChanged(selection.single)`.
 
 - [ ] **Step 4: Run the selector test**
 
@@ -1449,12 +1669,16 @@ testWidgets('Book Detail result shows six fixed fields including missing values'
 });
 
 testWidgets('Request tab displays inherited request origin', (tester) async {
-  // Pump a detail report whose request origin is inheritedParentResult,
-  // tap source-tester-tab-request, assert "请求来源：继承上一级结果 URL".
+  await tester.pumpWidget(MaterialApp(
+    home: Scaffold(body: BookDetailTestReportView(report: _inheritedDetailReport())),
+  ));
+  await tester.tap(find.byKey(const Key('source-tester-tab-request')));
+  await tester.pumpAndSettle();
+  expect(find.textContaining('请求来源：继承上一级结果 URL'), findsOneWidget);
 });
 ```
 
-Keep existing Search report tests asserting result count, request/response tabs, JS partial diagnostics, and body truncation.
+Keep existing Search report tests for result count, request/response tabs, JS partial diagnostics, and body truncation.
 
 - [ ] **Step 2: Run both report-view tests and verify RED**
 
@@ -1466,7 +1690,7 @@ flutter test \
 
 Expected: A2 test FAIL because shared/detail views do not exist; existing A1 report test remains green before refactor.
 
-- [ ] **Step 3: Extract only the diagnostic shell**
+- [ ] **Step 3: Extract only the diagnostic shell and keep business result views separate**
 
 `SourceTestReportTabs` constructor:
 
@@ -1480,7 +1704,7 @@ const SourceTestReportTabs({
 });
 ```
 
-It owns the existing four tab keys:
+Keep these existing keys unchanged:
 
 ```text
 source-tester-tab-results
@@ -1489,22 +1713,20 @@ source-tester-tab-response
 source-tester-tab-traces
 ```
 
-and the response body display limit of 200000 characters.
-
-Request-origin text mapping:
+Move the existing Request/Response/Trace widgets and the 200000-character body display limit into this file. Request origin text is exactly:
 
 ```dart
 String _originText(SourceTestRequestOrigin origin) => switch (origin) {
-  SourceTestRequestOrigin.configuredRequestInfo => 'bookDetail.requestInfo / searchBook.requestInfo',
+  SourceTestRequestOrigin.configuredRequestInfo => '配置的 requestInfo',
   SourceTestRequestOrigin.inheritedParentResult => '继承上一级结果 URL',
 };
 ```
 
-For Search, prefer presentation text `请求来源：配置的 requestInfo`; for Book Detail configured requests the same generic wording is sufficient. Do not infer action name inside the shared tab component.
+Request tab renders `请求来源：${_originText(request.origin)}` before method/final URL/original requestInfo/headers.
 
-Refactor `SourceTesterReportView` so only Search Result content remains Search-specific, then pass request/response/traces to `SourceTestReportTabs`.
+Refactor `SourceTesterReportView` so its Search-specific Result widget remains in `source_tester_report_view.dart`, then pass it plus the Search report diagnostics to `SourceTestReportTabs`.
 
-`BookDetailTestReportView` passes a six-field result widget and the same diagnostics. Render `—` for missing values and warnings/outcome above the fields.
+`BookDetailTestReportView` passes a six-field result widget to the same shell. Render all six labels and `—` for null/blank values. Show outcome and report warnings above the fields.
 
 - [ ] **Step 4: Run report views plus A1 page test**
 
@@ -1538,8 +1760,6 @@ git commit -m "refactor: share source tester diagnostic tabs"
 
 - [ ] **Step 1: Add failing page tests for default mode, A2 run, preservation, and running safety**
 
-Add tests equivalent to:
-
 ```dart
 testWidgets('Search is default and Detail can run independently', (tester) async {
   await tester.pumpWidget(_app(repository: _FakeRepository(_storedSourceWithDetail())));
@@ -1562,9 +1782,7 @@ testWidgets('Search is default and Detail can run independently', (tester) async
 });
 ```
 
-Add a test that runs Search, switches to Detail and runs it, then switches back and still sees the prior Search report without a second HTTP call.
-
-Add a test using a `Completer<SourceHttpResponse>` that while one mode is running, tapping the other mode does not change the selected mode.
+Add a test that runs Search, switches to Detail and runs it, switches back, and still sees the original Search report without another Search HTTP call. Add a `Completer<SourceHttpResponse>` test proving mode cannot change while a run is pending.
 
 - [ ] **Step 2: Run page tests and verify RED**
 
@@ -1576,7 +1794,7 @@ Expected: new A2 assertions FAIL.
 
 - [ ] **Step 3: Add independent page state and A2 error mapping**
 
-State shape:
+State:
 
 ```dart
 SourceTesterMode _mode = SourceTesterMode.search;
@@ -1587,7 +1805,7 @@ String? _searchErrorText;
 String? _bookDetailErrorText;
 ```
 
-Keep `_runSearch(SourceTesterInput input)` for A1 and add:
+Rename the old `_run` to `_runSearch` without changing its behavior. Add:
 
 ```dart
 Future<void> _runBookDetail(SourceBookDetailInput input) async {
@@ -1605,13 +1823,15 @@ Future<void> _runBookDetail(SourceBookDetailInput input) async {
     if (mounted) setState(() => _bookDetailReport = report);
   } on SourceTestException catch (error) {
     if (mounted) setState(() => _bookDetailErrorText = _formatSourceTestError(error));
+  } catch (error) {
+    if (mounted) setState(() => _bookDetailErrorText = '测试失败：$error');
   } finally {
     if (mounted) setState(() => _running = false);
   }
 }
 ```
 
-Extend `_formatSourceTestError`:
+Extend error mapping with:
 
 ```dart
 SourceTestFailureReason.bookDetailMissing => '当前书源没有 bookDetail 规则',
@@ -1620,7 +1840,7 @@ SourceTestFailureReason.parentResultMissing => '当前详情请求需要上一�
 
 Keep Search's `requestInfoMissing` message explicitly about `searchBook.requestInfo`.
 
-Render the mode selector above the active input panel. Use `_searchReport` only in Search mode and `_bookDetailReport` only in Book Detail mode. Changing mode must not clear either report. Disable mode switching while `_running`.
+Render `SourceTesterModeSelector(value: _mode, running: _running, onChanged: ...)` above the active input panel. Mode changes must only update `_mode`; do not clear either report. Render `_searchReport` only in Search mode and `_bookDetailReport` only in Book Detail mode.
 
 - [ ] **Step 4: Run all presentation tests**
 
@@ -1643,15 +1863,15 @@ git commit -m "feat: add book detail mode to source tester"
 
 **Files:**
 - Modify: `app/test/features/source_tester/presentation/source_tester_integration_test.dart`
-- Optional fixture create: `app/test/features/source_tester/fixtures/book_detail_fixture.html` if an inline deterministic fixture would make the test harder to read.
+- Optional create: `app/test/features/source_tester/fixtures/book_detail_fixture.html` only if the deterministic HTML is large enough that an inline string harms readability.
 
 **Interfaces:**
 - Verifies the real `Drift -> SqliteSourceRepository -> BookDetailTestRunner -> fake HTTP -> parser -> report` path.
 - Verifies Workbench unsaved basic-field draft does not affect A2.
 
-- [ ] **Step 1: Extend the persisted fixture source with `bookDetail` and write the failing integration test**
+- [ ] **Step 1: Extend the persisted fixture source and add the integration regressions**
 
-Add persisted data:
+Persist:
 
 ```dart
 'bookDetail': <String, Object?>{
@@ -1666,36 +1886,34 @@ Add persisted data:
 },
 ```
 
-Add a widget regression:
+The widget regression must execute these observable steps:
 
 ```text
-1. Insert saved sourceUrl = https://saved.example/base/
-2. Open Workbench and edit sourceUrl to https://draft.example/base/ without saving
+1. Persist sourceUrl = https://saved.example/base/
+2. Open Workbench and change sourceUrl to https://draft.example/base/ without saving
 3. Open Tester
 4. Switch to Book Detail
-5. Enter parentResult = /book/1
+5. Enter /book/1
 6. Run
-7. Assert captured request = https://saved.example/book/1
+7. Captured request URI must equal https://saved.example/book/1
 8. Navigate back
-9. Assert Workbench sourceUrl controller still contains https://draft.example/base/
-10. Assert repository still contains https://saved.example/base/
+9. Workbench sourceUrl field must still contain https://draft.example/base/
+10. Repository sourceUrl must still equal https://saved.example/base/
 ```
 
-Also add a non-widget real Runner test constructing `BookDetailTestRunner` from the real `SqliteSourceRepository` and the same fake HTTP executor.
+Add a separate non-widget test constructing the real `SqliteSourceRepository` and `BookDetailTestRunner` with fake HTTP, then assert parsed status/latest-chapter values from the fixture.
 
-- [ ] **Step 2: Run the integration test and verify RED**
+- [ ] **Step 2: Run the integration test immediately**
 
 ```bash
 flutter test test/features/source_tester/presentation/source_tester_integration_test.dart
 ```
 
-Expected: new A2 assertions FAIL until page/runner wiring is complete; existing A1 integration cases must remain PASS.
+Expected: PASS if Tasks 1-14 correctly preserved the persisted-state boundary. If it fails, the failure must identify a real integration defect; do not change production code merely to manufacture a RED phase for this final regression task.
 
-- [ ] **Step 3: Make only fixture/harness adjustments needed for the real A2 chain**
+- [ ] **Step 3: Fix only real integration defects revealed by Step 2**
 
-Use the production providers/constructors created in earlier tasks. Do not introduce a test-only shortcut that passes a `SourceDocument` or draft directly into Book Detail Runner.
-
-The fake executor must continue capturing the real `SourceHttpRequest` so the persisted URL assertion is made at the HTTP boundary.
+Allowed fixes are limited to production wiring already specified by Tasks 1-14. Do not pass a `SourceDocument`, editor Draft, or unsaved field value directly into `BookDetailTestRunner`; every run must continue through `repository.getSource(sourceId)`.
 
 - [ ] **Step 4: Run the integration test plus full Source Tester suite**
 
@@ -1708,9 +1926,11 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/test/features/source_tester/presentation/source_tester_integration_test.dart app/test/features/source_tester/fixtures
+git add app/test/features/source_tester/presentation/source_tester_integration_test.dart app/test/features/source_tester/fixtures app/lib/features/source_tester
 git commit -m "test: cover persisted book detail tester integration"
 ```
+
+If Step 2 already passes and no production fix is needed, commit only the new/updated tests and fixture.
 
 ---
 
@@ -1737,7 +1957,7 @@ to:
 - name: Verify clean worktree and Source Tester diff
 ```
 
-Keep these commands unchanged unless the approved spec/plan explicitly requires otherwise:
+Keep these commands unchanged:
 
 ```bash
 git diff --check 32f9a5a826f78b0609073f9141c4226daee271cf..HEAD
@@ -1758,7 +1978,7 @@ flutter test
 
 Expected: formatting check exits 0, analyze reports `No issues found!`, all tests pass.
 
-If code is intentionally not yet formatted, run `dart format lib test`, commit the formatting changes, then rerun the check above; do not weaken the check.
+If formatting check fails, run `dart format lib test`, commit only the formatting changes required by Dart formatter, then rerun all three commands. Do not weaken the check.
 
 - [ ] **Step 3: Run repository cleanliness checks from repo root**
 
@@ -1773,13 +1993,11 @@ Expected: exit 0.
 
 - [ ] **Step 4: Audit the final diff against the A2 scope**
 
-Run:
-
 ```bash
 git diff --name-only 07570b12890c299e54eb6c33044ab7ceb910ecc5..HEAD
 ```
 
-Verify the diff contains no:
+The diff must contain none of these:
 
 ```text
 Reader books/chapters schema or migration
@@ -1813,13 +2031,13 @@ flutter test: success
 clean worktree / historical diff check: success
 ```
 
-The final test count may be higher than A1's 240 tests; do not hard-code an expected total, only require zero failures.
+The final test count may be higher than A1's 240 tests; do not hard-code a total, only require zero failures.
 
 ---
 
 ## Plan Self-Review Checklist
 
-Before execution, this plan has explicit tasks for every A2 design requirement:
+Spec coverage is explicit:
 
 - persisted `bookDetail` domain access -> Task 1
 - A1-safe shared request extraction -> Task 2
@@ -1838,4 +2056,14 @@ Before execution, this plan has explicit tasks for every A2 design requirement:
 - real SQLite + unsaved-draft regression -> Task 15
 - full regression, no-scope-creep audit, CI cleanliness -> Task 16
 
-No Task introduces a database migration, Reader table, live-site test, JavaScript runtime, POST, WebView, or Book Detail editor.
+Type consistency checks:
+
+- `SourceTestRequestOrigin` is introduced exactly once in Task 3, consumed by Tasks 6, 9, and 13.
+- `SourceTestOutcome` is introduced exactly once in Task 6 and used by Search and Book Detail reports/runners thereafter.
+- `SearchBookRequestBuilder` replaces `SourceRequestBuilder` in Task 2; all later tasks use the new name.
+- `SourceRulePipelineEvaluator` is introduced in Task 4; providers/parsers use the same constructor/signature thereafter.
+- `SourceRuleParserRegistry.select(String?)` is introduced in Task 5 and both runners use it.
+- `BookDetailTestInput` is introduced in Task 3 and is the only application input passed to `BookDetailTestRunner`.
+- `SourceBookDetailInput` is presentation-only and is converted to `BookDetailTestInput` inside `SourceTesterPage`.
+
+No task introduces a database migration, Reader table, live-site test, JavaScript runtime, POST, WebView, or Book Detail editor.
