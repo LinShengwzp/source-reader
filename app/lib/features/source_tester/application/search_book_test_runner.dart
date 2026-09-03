@@ -1,5 +1,5 @@
+import 'package:source_reader/features/source_tester/application/search_book_request_builder.dart';
 import 'package:source_reader/features/source_tester/application/search_book_result_parser.dart';
-import 'package:source_reader/features/source_tester/application/source_request_builder.dart';
 import 'package:source_reader/features/source_tester/application/source_response_decoder.dart';
 import 'package:source_reader/features/source_tester/application/source_rule_parser.dart';
 import 'package:source_reader/features/source_tester/domain/source_http.dart';
@@ -20,7 +20,7 @@ final class SearchBookTestRunner {
   });
 
   final SourceRepository repository;
-  final SourceRequestBuilder requestBuilder;
+  final SearchBookRequestBuilder requestBuilder;
   final SourceHttpExecutor httpExecutor;
   final SourceResponseDecoder responseDecoder;
   final SourceRuleParser htmlParser;
