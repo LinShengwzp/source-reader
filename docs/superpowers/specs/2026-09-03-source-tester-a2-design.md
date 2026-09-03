@@ -113,7 +113,7 @@ A2 adds no `books`, `chapters`, tester-history, cache, or other Reader tables. N
 - automatic retry / `tryCount`
 - `cacheTime`
 - WebView / `webViewJs`
-- source regex execution beyond already-supported declarative parsing
+- `sourceRegex`
 - automatic pagination
 - test-history persistence
 - cover image fetching
@@ -444,10 +444,12 @@ utf-8        -> UTF-8
 2147485234   -> GBK
 ```
 
-Without an explicit supported value:
+If no explicit `responseEncode` exists:
 
 1. use a recognized supported `Content-Type` charset
 2. otherwise default to UTF-8
+
+An explicitly configured unsupported encoding produces `unsupportedResponseEncoding`; it must not silently fall back to a header charset or UTF-8.
 
 Malformed UTF-8 may use replacement characters while recording a warning.
 
