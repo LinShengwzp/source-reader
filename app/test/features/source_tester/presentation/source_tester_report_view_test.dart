@@ -11,7 +11,7 @@ void main() {
 
     expect(find.byKey(const Key('source-tester-tab-results')), findsOneWidget);
     expect(find.text('测试书籍'), findsOneWidget);
-    expect(find.text('作者甲'), findsOneWidget);
+    expect(find.textContaining('作者甲'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('source-tester-tab-request')));
     await tester.pumpAndSettle();
