@@ -34,7 +34,8 @@ void main() {
   });
 
   testWidgets('响应正文超过 200000 字符时截断并显示提示', (tester) async {
-    final body = '${'a' * 200000}TAIL_SHOULD_NOT_RENDER';
+    final prefix = List<String>.filled(200000, 'a').join();
+    final body = '${prefix}TAIL_SHOULD_NOT_RENDER';
     await tester.pumpWidget(
       _wrap(SourceTesterReportView(report: _report(body: body))),
     );
