@@ -1,3 +1,5 @@
+import 'package:source_reader/features/source_tester/domain/source_http.dart';
+
 final class SearchBookTestItem {
   const SearchBookTestItem({
     this.bookName,
@@ -56,4 +58,83 @@ final class SearchBookParseResult {
   final List<SearchBookTestItem> items;
   final List<SourceRuleTrace> traces;
   final List<String> warnings;
+}
+
+enum SearchBookTestOutcome { success, completedWithWarnings }
+
+final class SearchBookTestInputSnapshot {
+  const SearchBookTestInputSnapshot({
+    required this.keyWord,
+    required this.pageIndex,
+    required this.offset,
+    required this.filter,
+  });
+
+  final String keyWord;
+  final int pageIndex;
+  final int offset;
+  final String filter;
+}
+
+final class SourceTestRequestSnapshot {
+  SourceTestRequestSnapshot({
+    required this.originalRequestInfo,
+    required this.uri,
+    required this.method,
+    required Map<String, String> headers,
+  }) : headers = Map<String, String>.unmodifiable(headers);
+
+  final String originalRequestInfo;
+  final Uri uri;
+  final SourceHttpMethod method;
+  final Map<String, String> headers;
+}
+
+final class SourceTestResponseSnapshot {
+  SourceTestResponseSnapshot({
+    required this.statusCode,
+    required this.finalUri,
+    required Map<String, String> headers,
+    required this.duration,
+    required this.byteCount,
+    required this.encoding,
+    required this.decodedBody,
+  }) : headers = Map<String, String>.unmodifiable(headers);
+
+  final int statusCode;
+  final Uri finalUri;
+  final Map<String, String> headers;
+  final Duration duration;
+  final int byteCount;
+  final String encoding;
+  final String decodedBody;
+}
+
+/// 一次 `searchBook` 测试的完整、不可持久化诊断快照。
+final class SearchBookTestReport {
+  SearchBookTestReport({
+    required this.sourceId,
+    required this.sourceName,
+    required this.platform,
+    required this.input,
+    required this.request,
+    required this.response,
+    required List<SearchBookTestItem> items,
+    required List<SourceRuleTrace> traces,
+    required List<String> warnings,
+    required this.outcome,
+  })  : items = List<SearchBookTestItem>.unmodifiable(items),
+        traces = List<SourceRuleTrace>.unmodifiable(traces),
+        warnings = List<String>.unmodifiable(warnings);
+
+  final int sourceId;
+  final String? sourceName;
+  final String platform;
+  final SearchBookTestInputSnapshot input;
+  final SourceTestRequestSnapshot request;
+  final SourceTestResponseSnapshot response;
+  final List<SearchBookTestItem> items;
+  final List<SourceRuleTrace> traces;
+  final List<String> warnings;
+  final SearchBookTestOutcome outcome;
 }
